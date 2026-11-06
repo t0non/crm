@@ -1,0 +1,351 @@
+/**
+ * O link de pagamento da assinatura (spec da cobrança do revendedor §7b, §7g).
+ * Chamado pelo "Assinar" da empresa e pelo "Gerar link de pagamento" do dono.
+ * Três fases, e nenhuma chamada ao provedor dentro de transação:
+ *   1. reserva curta (compare-and-set em `checkout_expira_em`): link ainda
+ *      válido é devolvido de novo; outro clique em curso → 409;
+ *   2. fora de transação: assinatura já viva no provedor → 409 com o link;
+ *      ajuste proporcional em aberto morre no provedor antes (sem cobrança dupla);
+ *      senão cliente (nome legal e o e-mail que a rota passa; o documento não é
+ *      guardado) e checkout hospedado, com o teste grátis que ainda resta;
+ *   3. grava provedor, modo, cliente e link. Falha na fase 2 libera a reserva.
+ * O retry do mesmo clique cai na fase 1 e recebe o MESMO link: a idempotência
+ * é do estado, e a `Idempotency-Key` segue ao provedor como chave dele.
+ * A org vem de quem chama, sempre de fonte confiável (sessão ou path).
+ */
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { audit } from "@/lib/audit";
+import { checkoutSandboxHabilitado, provedorDaInstalacao } from "@/lib/cobranca/configuracao";
+import { cupomProfissionalAtivo } from "@/lib/cobranca/cupom-profissional";
+import { documentoDoPagador, exigeDocumento } from "@/lib/cobranca/documento";
+import { limiteDoProvedorPorOrg, recusaDoProvedor } from "@/lib/cobranca/falhas";
+import { cotarProfissional, PRECO_PROFISSIONAL_CENTS, PRECO_TESTE_ASAAS_CENTS } from "@/lib/cobranca/oferta-profissional";
+import { adaptador, modoDoProvedor } from "@/lib/cobranca/provedores";
+import { ASAAS_API_BASE } from "@/lib/cobranca/provedores/asaas";
+import { ErroDoProvedor } from "@/lib/cobranca/provedores/contrato";
+import { desistirDoAjuste } from "@/lib/cobranca/troca";
+import type { EstadoDaAssinatura, Intervalo, ProvedorDeCobranca } from "@/lib/cobranca/vocabulario";
+import { urlPublicaUsavel } from "@/lib/escalacao/url-publica";
+import { logger } from "@/lib/logger";
+
+const RESERVA_MS = 2 * 60_000;
+const VALIDADE_PADRAO_MS = 24 * 3_600_000;
+const VALIDADE_PROFISSIONAL_MIN = 60;
+
+interface Lida {
+  modo: "teste" | "producao" | null;
+  plano_id: string;
+  estado: EstadoDaAssinatura;
+  trial_ate: string | null;
+  provedor: ProvedorDeCobranca | null;
+  provedor_cliente_id: string | null;
+  checkout_url: string | null;
+  checkout_expira_em: string | null;
+  preco_contratado_cents: number | null;
+  cupom_contratado: string | null;
+  troca_id: string | null;
+  troca_status: string | null;
+  troca_pagamento_ref: string | null;
+  troca_reserva_ate: string | null;
+}
+
+export type ResultadoDoCheckout =
+  | { ok: true; url: string }
+  | { ok: false; status: number; code: string; message: string; details?: unknown; headers?: Record<string, string> };
+
+export async function gerarLinkDePagamento(
+  admin: SupabaseClient,
+  p: {
+    orgId: string;
+    /** O `documento` do corpo, cru (com ou sem máscara). */
+    documentoBruto: string | undefined;
+    /** E-mail do cliente no provedor; null = a empresa não tem admin com e-mail. */
+    email: string | null;
+    chaveIdempotencia: string;
+    urlDeVolta: string;
+    actorUserId: string;
+    requestId: string;
+    /** O dono da instalação agindo sobre a empresa: o audit registra o bypass de RLS. */
+    comoDono: boolean;
+    profissional?: { cupom?: string; teste?: true };
+  },
+): Promise<ResultadoDoCheckout> {
+  const { orgId } = p;
+  const recusar = (status: number, code: string, message: string, details?: unknown): ResultadoDoCheckout => ({
+    ok: false,
+    status,
+    code,
+    message,
+    ...(details === undefined ? {} : { details }),
+  });
+  const documento = p.documentoBruto === undefined ? null : documentoDoPagador(p.documentoBruto);
+  const teste = p.profissional?.teste === true;
+  if (teste && (!checkoutSandboxHabilitado() || p.profissional?.cupom !== undefined)) {
+    return recusar(409, "oferta_indisponivel", "O checkout de teste só está disponível no Sandbox do Asaas.");
+  }
+  const oferta = teste
+    ? { cupom: null, precoOriginalCents: PRECO_TESTE_ASAAS_CENTS, descontoCents: 0, precoCents: PRECO_TESTE_ASAAS_CENTS }
+    : p.profissional ? cotarProfissional(p.profissional.cupom) : null;
+  if (p.profissional && !oferta) return recusar(422, "cupom_invalido", "Cupom inválido ou indisponível.");
+  if (oferta?.cupom && !(await cupomProfissionalAtivo(admin).catch(() => false))) {
+    return recusar(422, "cupom_invalido", "Cupom inválido ou indisponível.");
+  }
+  if (p.documentoBruto !== undefined && documento === null) {
+    return recusar(422, "documento_invalido", "Confira o CPF ou CNPJ: os dígitos não batem.");
+  }
+
+  const { data, error } = await admin
+    .from("cobranca_assinaturas")
+    .select("plano_id, estado, trial_ate, provedor, modo, provedor_cliente_id, checkout_url, checkout_expira_em, preco_contratado_cents, cupom_contratado, troca_id, troca_status, troca_pagamento_ref, troca_reserva_ate")
+    .eq("organization_id", orgId)
+    .maybeSingle();
+  if (error) return recusar(500, "internal_error", "Não foi possível ler a assinatura.");
+  const lida = data as Lida | null;
+  if (!lida) return recusar(404, "not_found", "Sua empresa não tem plano de cobrança.");
+
+  const agora = new Date();
+  const expira = lida.checkout_expira_em === null ? null : Date.parse(lida.checkout_expira_em);
+  if (lida.checkout_url && expira !== null && expira > agora.getTime()) {
+    if (oferta && (oferta.precoCents !== lida.preco_contratado_cents || oferta.cupom !== lida.cupom_contratado)) {
+      return recusar(409, "checkout_em_aberto", "Já há um checkout aberto com outras condições. Aguarde a expiração para contratar neste valor.");
+    }
+    return { ok: true, url: lida.checkout_url };
+  }
+  if (!lida.checkout_url && expira !== null && expira > agora.getTime()) {
+    return recusar(409, "checkout_em_preparo", "Já estamos gerando o seu link de pagamento. Aguarde alguns segundos.");
+  }
+  if (!oferta && lida.preco_contratado_cents != null && lida.estado !== "ativa") {
+    return recusar(409, "oferta_indisponivel", "Abra a página de planos para confirmar as condições de uma nova contratação.");
+  }
+  const provedor = lida.provedor ?? (await provedorDaInstalacao());
+  if (!provedor) return recusar(409, "provedor_nao_conectado", "O administrador do sistema ainda não conectou a cobrança.");
+  if (oferta && (provedor !== "asaas" || lida.estado === "ativa")) {
+    return recusar(409, "oferta_indisponivel", "Esta oferta é exclusiva para novas contratações pelo Asaas.");
+  }
+  if (oferta) {
+    const modo = await modoDoProvedor("asaas");
+    const appUrl = process.env.APP_URL;
+    if (!modo || (lida.modo != null && lida.modo !== modo) || (teste && modo !== "teste") || process.env.ASAAS_API_URL !== ASAAS_API_BASE[modo] || !appUrl?.startsWith("https://") || !urlPublicaUsavel(appUrl)) {
+      return recusar(409, "oferta_indisponivel", "O ambiente do checkout ainda não foi configurado.");
+    }
+  }
+  if (exigeDocumento(provedor, lida.provedor_cliente_id !== null) && documento === null) {
+    return recusar(422, "documento_obrigatorio", "Informe o CPF ou CNPJ de quem paga: o provedor de pagamento exige para emitir a cobrança.");
+  }
+  // O e-mail só é usado ao criar o cliente: quem já é cliente segue sem ele.
+  if (p.email === null && lida.provedor_cliente_id === null) {
+    return recusar(409, "empresa_sem_email", "A empresa ainda não tem administrador com e-mail. Gere o link depois que um convite de administrador for aceito.");
+  }
+  if (!(await limiteDoProvedorPorOrg(orgId))) {
+    return {
+      ok: false,
+      status: 429,
+      code: "rate_limited",
+      message: "Muitas tentativas seguidas. Aguarde um minuto e tente de novo.",
+      headers: { "Retry-After": "60" },
+    };
+  }
+
+  // Fase 1: a reserva. Quem chegar junto perde o compare-and-set. O ISO dela é a
+  // "posse": liberar e gravar o link filtram por ele, para uma requisição lenta
+  // não soltar nem sobrescrever a reserva de outra.
+  const reserva = new Date(agora.getTime() + RESERVA_MS + (oferta ? VALIDADE_PROFISSIONAL_MIN * 60_000 : 0)).toISOString();
+  const { data: reservada, error: erroDaReserva } = await admin
+    .from("cobranca_assinaturas")
+    .update({ checkout_url: null, checkout_expira_em: reserva, checkout_sessao_id: null })
+    .eq("organization_id", orgId)
+    .eq("plano_id", lida.plano_id)
+    .or(`checkout_expira_em.is.null,checkout_expira_em.lt."${agora.toISOString()}"`)
+    .select("organization_id")
+    .maybeSingle();
+  if (erroDaReserva) return recusar(500, "internal_error", "Não foi possível reservar o pagamento.");
+  if (!reservada) return recusar(409, "checkout_em_preparo", "Já estamos gerando o seu link de pagamento. Aguarde alguns segundos.");
+
+  try {
+    const url = await gerarCheckout(admin, orgId, lida, provedor, {
+      reserva,
+      email: p.email ?? "",
+      documento,
+      chaveIdempotencia: p.chaveIdempotencia,
+      actorUserId: p.actorUserId,
+      requestId: p.requestId,
+      urlDeVolta: p.urlDeVolta,
+      comoDono: p.comoDono,
+      oferta,
+    });
+    if ("recusa" in url) {
+      await liberarReserva(admin, orgId, reserva);
+      return url.recusa;
+    }
+    if ("vivo" in url) {
+      await liberarReserva(admin, orgId, reserva);
+      if (url.vivo === null) {
+        // Assinatura viva sem fatura pagável agora (ex.: pausada): nunca uma frase que promete um link.
+        return recusar(
+          409,
+          "sem_link_de_pagamento",
+          "Não há cobrança aberta para pagar agora. Atualize o cartão em Gerenciar pagamento: a próxima tentativa sai sozinha.",
+        );
+      }
+      return recusar(409, "pagamento_em_andamento", "Você já tem um pagamento em andamento. Use o link para concluir.", { link_de_pagamento: url.vivo });
+    }
+    return { ok: true, url: url.url };
+  } catch (e) {
+    // Um POST aceito com resposta perdida pode ter criado um link utilizável.
+    // Nesse caso a reserva cobre toda a validade do checkout.
+    if (!oferta || (e instanceof ErroDoProvedor && e.status !== null && e.status >= 400 && e.status < 500)) {
+      await liberarReserva(admin, orgId, reserva);
+    }
+    if (!(e instanceof ErroDoProvedor)) {
+      // Defeito nosso (banco, adaptador, link não gravado): envelope e X-Request-Id, e só o nome/código no log.
+      logger.error("cobranca: checkout falhou fora do provedor", {
+        requestId: p.requestId,
+        organizationId: orgId,
+        erro: e instanceof Error ? e.name : "desconhecido",
+        // As nossas ("cobranca: …") só levam o código do PostgREST: separam reserva perdida de incidente de banco.
+        motivo: e instanceof Error && e.message.startsWith("cobranca:") ? e.message : null,
+        codigo: (e as { code?: unknown } | null)?.code ?? null,
+      });
+      return recusar(500, "internal_error", "Não foi possível gerar o link de pagamento. Tente de novo em instantes.");
+    }
+    if (e.codigo === "invalid_cpfCnpj") {
+      // Dígitos certos e o Asaas recusou (o CNPJ alfanumérico, por exemplo): é o
+      // documento, e quem clicou consegue resolver. Nunca o 502 "fale com quem administra".
+      return recusar(422, "documento_recusado", "O provedor de pagamento não aceitou este CPF ou CNPJ. Confira o número ou informe outro documento.");
+    }
+    const r = recusaDoProvedor(e);
+    return recusar(r.status, r.code, r.message);
+  }
+}
+
+/** Não lança: a reserva que não sai expira sozinha em RESERVA_MS, mas fica no log (o próximo clique vê `checkout_em_preparo`). */
+async function liberarReserva(admin: SupabaseClient, orgId: string, reserva: string): Promise<void> {
+  try {
+    const { error } = await admin
+      .from("cobranca_assinaturas")
+      .update({ checkout_expira_em: null })
+      .eq("organization_id", orgId)
+      .eq("checkout_expira_em", reserva)
+      .is("checkout_url", null);
+    if (error) logger.error("cobranca: reserva do checkout não liberada", { organizationId: orgId, codigo: error.code });
+  } catch (e) {
+    logger.error("cobranca: reserva do checkout não liberada", { organizationId: orgId, erro: e instanceof Error ? e.name : "desconhecido" });
+  }
+}
+
+/** Fases 2 e 3. Lança `ErroDoProvedor` (quem chama libera a reserva) ou erro de banco. */
+async function gerarCheckout(
+  admin: SupabaseClient,
+  orgId: string,
+  lida: Lida,
+  provedor: ProvedorDeCobranca,
+  quem: {
+    reserva: string;
+    email: string;
+    documento: string | null;
+    chaveIdempotencia: string;
+    actorUserId: string;
+    requestId: string;
+    urlDeVolta: string;
+    comoDono: boolean;
+    oferta: ReturnType<typeof cotarProfissional>;
+  },
+): Promise<{ url: string } | { vivo: string | null } | { recusa: ResultadoDoCheckout }> {
+  const ad = adaptador(provedor);
+  if (lida.provedor_cliente_id) {
+    const situacao = await ad.lerSituacao({ clienteRef: lida.provedor_cliente_id });
+    if (situacao.assinaturasVivas > 0) return { vivo: situacao.linkDePagamento };
+  }
+  if (lida.troca_id) {
+    // Ajuste proporcional em aberto e nenhuma assinatura viva (o Asaas cancela na
+    // hora): o checkout cheio por cima seria cobrança dupla. O ajuste morre no
+    // provedor ANTES; já pago, recusa — o plano pago está sendo aplicado.
+    const desistencia = await desistirDoAjuste(admin, orgId, lida, () => ad, new Date());
+    if (desistencia && !desistencia.ok) return { recusa: desistencia };
+  }
+  const [org, plano] = await Promise.all([
+    admin.from("organizations").select("legal_name, display_name").eq("id", orgId).maybeSingle(),
+    admin.from("cobranca_planos").select("id, nome, preco_cents, intervalo, arquivado_em").eq("id", lida.plano_id).maybeSingle(),
+  ]);
+  if (org.error || plano.error || !plano.data) throw new Error("cobranca: empresa ou plano ilegível no checkout");
+  const nomes = org.data as { legal_name: string | null; display_name: string } | null;
+  const p = plano.data as { id: string; nome: string; preco_cents: number; intervalo: Intervalo; arquivado_em: string | null };
+  if (quem.oferta && (p.nome.trim().toLowerCase() !== "profissional" || p.preco_cents !== PRECO_PROFISSIONAL_CENTS || p.intervalo !== "mes" || p.arquivado_em !== null)) {
+    return { recusa: { ok: false, status: 409, code: "oferta_indisponivel", message: "O plano Profissional mensal não está atribuído à sua empresa." } };
+  }
+  const clienteRef =
+    lida.provedor_cliente_id ??
+    (await ad.garantirCliente({ id: orgId, nome: nomes?.legal_name || nomes?.display_name || orgId, email: quem.email, documento: quem.documento }));
+  if (provedor === "asaas" && lida.provedor_cliente_id === null) {
+    // O Asaas manda o SUBSCRIPTION_CREATED DURANTE o POST /subscriptions: sem o
+    // cliente gravado antes, o aviso não acha a empresa (cliente_desconhecido) e a
+    // Visão geral acusa um problema que não existe. A Stripe só cria a assinatura
+    // depois do pagamento, e nela a fase 3 basta. Mesmo compare-and-set da reserva.
+    const { data: comCliente, error: erroDoCliente } = await admin
+      .from("cobranca_assinaturas")
+      .update({ provedor, modo: await modoDoProvedor(provedor), provedor_cliente_id: clienteRef, updated_at: new Date().toISOString() })
+      .eq("organization_id", orgId)
+      .eq("checkout_expira_em", quem.reserva)
+      .is("checkout_url", null)
+      .select("organization_id")
+      .maybeSingle();
+    if (erroDoCliente || !comCliente) throw new Error(`cobranca: cliente do Asaas não gravado (${erroDoCliente?.code ?? "reserva_perdida"})`);
+  }
+  if (quem.oferta) {
+    const { data: gravada, error } = await admin.from("cobranca_assinaturas")
+      .update({ preco_contratado_cents: quem.oferta.precoCents, cupom_contratado: quem.oferta.cupom })
+      .eq("organization_id", orgId)
+      .eq("checkout_expira_em", quem.reserva)
+      .eq("plano_id", p.id)
+      .select("organization_id")
+      .maybeSingle();
+    if (error || !gravada) throw new Error("cobranca: preço do checkout não gravado");
+  }
+  const inicio = await ad.iniciarAssinatura({
+    clienteRef,
+    orgId,
+    plano: { id: p.id, nome: p.nome, precoCents: quem.oferta?.precoCents ?? p.preco_cents, intervalo: p.intervalo },
+    trialAte: lida.estado === "trial" && lida.trial_ate ? new Date(lida.trial_ate) : null,
+    urlDeVolta: quem.urlDeVolta,
+    chaveIdempotencia: quem.chaveIdempotencia,
+    ...(quem.oferta ? { checkoutRecorrente: { referencia: quem.chaveIdempotencia, expiraMinutos: VALIDADE_PROFISSIONAL_MIN } } : {}),
+  });
+  const modo = await modoDoProvedor(provedor);
+  const { data: gravada, error } = await admin
+    .from("cobranca_assinaturas")
+    .update({
+      provedor,
+      modo,
+      provedor_cliente_id: clienteRef,
+      // O Asaas cria a assinatura no Assinar (ACTIVE, à espera do 1º pagamento): sem a
+      // referência, a troca de plano no teste grátis não chegaria a ele (troca.ts).
+      // A Stripe devolve null, e a escrita dela fica como era.
+      ...(inicio.assinaturaRef ? { provedor_assinatura_id: inicio.assinaturaRef } : {}),
+      checkout_url: inicio.url,
+      checkout_expira_em: (inicio.expiraEm ?? new Date(Date.now() + VALIDADE_PADRAO_MS)).toISOString(),
+      // A id da sessão NO PROVEDOR (#2609): é ela que a troca de plano expira,
+      // para o link antigo não sobreviver à troca. Reserva acima já a zerou.
+      checkout_sessao_id: inicio.sessaoId ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("organization_id", orgId)
+    .eq("checkout_expira_em", quem.reserva)
+    .is("checkout_url", null)
+    // O link vale só para o plano com que foi gerado.
+    .eq("plano_id", lida.plano_id)
+    .select("organization_id")
+    .maybeSingle();
+  if (error || !gravada) throw new Error(`cobranca: link de pagamento não gravado (${error?.code ?? "reserva_perdida"})`);
+  void audit({
+    action: "cobranca.checkout_iniciado",
+    actorUserId: quem.actorUserId,
+    ...(quem.comoDono ? { actingAsPlatformAdmin: true, bypassedRls: true } : {}),
+    organizationId: orgId,
+    resourceType: "cobranca_assinatura",
+    resourceId: orgId,
+    requestId: quem.requestId,
+    metadata: { provedor, modo, plano_id: p.id },
+  });
+  return { url: inicio.url };
+}
