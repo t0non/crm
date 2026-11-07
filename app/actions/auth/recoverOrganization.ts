@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { CAMINHO_PLANOS_COMERCIAL } from "@/lib/cobranca/jornada";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
@@ -195,5 +196,5 @@ export async function recoverOrganization(name: string, planoId?: string): Promi
   }
 
   revalidatePath("/app");
-  redirect("/onboarding/welcome");
+  redirect(authUser.user_metadata?.contratar_profissional === true ? CAMINHO_PLANOS_COMERCIAL : "/onboarding/welcome");
 }

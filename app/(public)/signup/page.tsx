@@ -10,7 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { lerCadastroNaTela, planoInicialDoSeletor } from "@/lib/cobranca/cadastro";
+import { lerCadastroNaTela, planoDaContratacao, planoInicialDoSeletor } from "@/lib/cobranca/cadastro";
+import { CAMINHO_LOGIN_COMERCIAL } from "@/lib/cobranca/jornada";
 import { tituloDaTelaPublica } from "@/lib/i18n/titulo-da-tela-publica";
 
 // A aba no idioma do visitante, como o corpo (`lib/i18n/titulo-da-tela-publica.ts`).
@@ -41,9 +42,10 @@ export const generateMetadata = () => tituloDaTelaPublica((t) => t("Criar conta"
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string }>;
+  searchParams: Promise<{ invite?: string; contratar?: string }>;
 }) {
-  const { invite } = await searchParams;
+  const { invite, contratar } = await searchParams;
+  const jornadaComercial = !invite && contratar === "1";
   const payload = invite ? verifyInviteToken(invite) : null;
   const convite = invite && payload ? { token: invite, email: payload.email } : undefined;
   const conviteExpirado = Boolean(invite) && !payload;
@@ -67,6 +69,7 @@ export default async function SignupPage({
   // o mesmo do gatilho. Leitura que falha não esconde nada: quem recusa é a action.
   const cadastro = convite ? null : await lerCadastroNaTela(createAdminClient());
   const planos = cadastro?.oferecidos ?? [];
+  const profissional = jornadaComercial ? planoDaContratacao(planos) : undefined;
   const googleSemPlano = cadastro?.exigeEscolha ?? false;
 
   // Convite VÁLIDO passa em qualquer modo — é o ponto inteiro do convite.
@@ -104,7 +107,7 @@ export default async function SignupPage({
         <p className="text-sm text-muted-foreground">
           {convite
             ? t("Crie sua senha para entrar na empresa que te convidou")
-            : `${t("Comece a usar o")} ${marca.nome} ${t("em minutos")}`}
+            : jornadaComercial ? "Crie sua conta para revisar o plano e concluir o pagamento." : `${t("Comece a usar o")} ${marca.nome} ${t("em minutos")}`}
         </p>
         {modo === "com_aprovacao" && (
           <p className="text-sm text-muted-foreground">
@@ -124,10 +127,14 @@ export default async function SignupPage({
         </p>
       )}
 
-      <SignupForm convite={convite} planos={planos} planoInicial={planoInicialDoSeletor(planos, cadastro?.padraoId ?? null)} />
+      {jornadaComercial && !profissional ? (
+        <p role="status" className="rounded-md border p-4 text-sm">O cadastro para o plano Profissional está temporariamente indisponível.</p>
+      ) : (
+        <SignupForm convite={convite} planos={planos} planoInicial={profissional?.id ?? planoInicialDoSeletor(planos, cadastro?.padraoId ?? null)} contratar={jornadaComercial} />
+      )}
       {/* O convite atravessa o Google na URL de retorno: sem ele, quem foi
           convidado e cria a conta com Google ganharia uma empresa própria. */}
-      {googleSemPlano ? (
+      {!jornadaComercial && (googleSemPlano ? (
         <p className="text-center text-xs text-muted-foreground">{t("Para garantir que o plano selecionado seja contratado, conclua o cadastro com e-mail e senha.")}</p>
       ) : (
         <>
@@ -136,7 +143,7 @@ export default async function SignupPage({
             <p className="text-center text-xs text-muted-foreground">{t("Com o Google, a empresa começa no plano padrão. Para escolher outro, use e-mail e senha.")}</p>
           )}
         </>
-      )}
+      ))}
 
       <p className="text-center text-sm text-muted-foreground">
         {t("Já tem conta?")}{" "}
@@ -144,7 +151,7 @@ export default async function SignupPage({
           href={
             convite
               ? `/login?next=${encodeURIComponent(`/team/accept-invite/${convite.token}`)}`
-              : "/login"
+              : jornadaComercial ? CAMINHO_LOGIN_COMERCIAL : "/login"
           }
           className="font-medium text-foreground underline underline-offset-4"
         >

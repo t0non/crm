@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CAMINHO_CADASTRO_COMERCIAL, CAMINHO_PLANOS_COMERCIAL } from "@/lib/cobranca/jornada";
 
 import { EntrarComGoogle } from "@/components/auth/EntrarComGoogle";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -158,7 +159,7 @@ export default async function LoginPage({
         <p className="text-muted-foreground">
           {t("Não tem conta?")}{" "}
           <Link
-            href={convite && invite ? `/signup?invite=${encodeURIComponent(invite)}` : "/signup"}
+            href={convite && invite ? `/signup?invite=${encodeURIComponent(invite)}` : next === CAMINHO_PLANOS_COMERCIAL ? CAMINHO_CADASTRO_COMERCIAL : "/signup"}
             className="font-medium text-foreground underline underline-offset-4"
           >
             {t("Criar conta")}

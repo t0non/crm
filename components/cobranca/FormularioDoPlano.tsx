@@ -10,13 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
+import { CAMINHO_CADASTRO_COMERCIAL, CAMINHO_PLANOS_COMERCIAL } from "@/lib/cobranca/jornada";
 import { linkDePagamentoSeguro } from "@/lib/cobranca/link";
 
 type Cotacao = Awaited<ReturnType<typeof aplicarCupom>>;
 const formatador = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const reais = (centavos: number) => formatador.format(centavos / 100);
 
-export function FormularioDoPlano({ precoOficial, inicial, precoTeste }: { precoOficial: number; inicial: Cotacao; precoTeste?: number }) {
+export function FormularioDoPlano({ precoOficial, inicial, precoTeste, autenticado }: { precoOficial: number; inicial: Cotacao; precoTeste?: number; autenticado: boolean }) {
   const [cotacao, setCotacao] = useState(inicial);
   const [codigo, setCodigo] = useState(inicial?.cupom ?? "");
   const [documento, setDocumento] = useState("");
@@ -27,7 +28,16 @@ export function FormularioDoPlano({ precoOficial, inicial, precoTeste }: { preco
   const [teste, setTeste] = useState(false);
   const cupom = cotacao?.cupom;
   const preco = reais(cotacao?.precoCents ?? precoOficial);
-  const destino = cupom ? `/planos?cupom=${encodeURIComponent(cupom)}` : "/planos";
+  const destino = cupom ? `${CAMINHO_PLANOS_COMERCIAL}&cupom=${encodeURIComponent(cupom)}` : CAMINHO_PLANOS_COMERCIAL;
+
+  function continuar(eTeste = false) {
+    if (!autenticado) {
+      setPedirLogin(true);
+      return;
+    }
+    setTeste(eTeste);
+    setConfirmando(true);
+  }
 
   async function validar() {
     setOcupado(true);
@@ -89,7 +99,7 @@ export function FormularioDoPlano({ precoOficial, inicial, precoTeste }: { preco
       {pedirLogin ? (
         <div className="flex flex-wrap gap-3 text-sm">
           <Link className="underline" href={`/login?next=${encodeURIComponent(destino)}`}>Entrar para contratar</Link>
-          <Link className="underline" href="/signup">Criar conta</Link>
+          <Link className="underline" href={CAMINHO_CADASTRO_COMERCIAL}>Criar conta</Link>
         </div>
       ) : confirmando ? (
         <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void contratar(); }}>
@@ -100,9 +110,9 @@ export function FormularioDoPlano({ precoOficial, inicial, precoTeste }: { preco
         </form>
       ) : (
         <div className="space-y-2">
-          <Button className="w-full" disabled={ocupado} onClick={() => setConfirmando(true)}>{cupom ? `Assinar por ${preco}/mês` : "Começar agora"}</Button>
+          <Button className="w-full" disabled={ocupado} onClick={() => continuar()}>{cupom ? `Assinar por ${preco}/mês` : "Começar agora"}</Button>
           {precoTeste !== undefined && (
-            <Button className="w-full" variant="outline" disabled={ocupado} onClick={() => { setTeste(true); setConfirmando(true); }}>
+            <Button className="w-full" variant="outline" disabled={ocupado} onClick={() => continuar(true)}>
               Testar por {reais(precoTeste)}/mês no Sandbox
             </Button>
           )}

@@ -12,6 +12,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { moduloLigado } from "@/lib/instalacao/modulos";
+import { PRECO_PROFISSIONAL_CENTS } from "./oferta-profissional";
 
 export interface PlanoDoCadastro {
   id: string;
@@ -24,6 +25,11 @@ export interface PlanoDoCadastro {
 export interface PlanosDoCadastro {
   padraoId: string | null;
   oferecidos: PlanoDoCadastro[];
+}
+
+export function planoDaContratacao(planos: readonly PlanoDoCadastro[]): PlanoDoCadastro | undefined {
+  return planos.find((plano) => plano.nome.trim().toLowerCase() === "profissional" &&
+    plano.preco_cents === PRECO_PROFISSIONAL_CENTS && plano.intervalo === "mes" && plano.trial_dias === 0);
 }
 
 /** `null` quando a leitura falhou: quem decide uma AÇÃO trata como recusa. */

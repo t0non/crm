@@ -22,6 +22,7 @@ export const organizationNameSchema = z
 export const signupSchema = z
   .object({
     org_name: organizationNameSchema,
+    full_name: z.string().trim().min(2, "Informe seu nome").max(120).optional(),
     cobranca_plan_id: z.string().uuid().optional(),
     email: z.string().email("Email inválido"),
     password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { CAMINHO_PLANOS_COMERCIAL } from "@/lib/cobranca/jornada";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
@@ -295,5 +296,5 @@ async function confirmar({
     requestId,
   });
 
-  return redirectTo("/onboarding/welcome");
+  return redirectTo(usuario.user_metadata?.contratar_profissional === true ? CAMINHO_PLANOS_COMERCIAL : "/onboarding/welcome");
 }

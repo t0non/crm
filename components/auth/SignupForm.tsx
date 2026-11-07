@@ -37,11 +37,13 @@ export function SignupForm({
   convite,
   planos = [],
   planoInicial,
+  contratar = false,
 }: {
   convite?: ConviteDoSignup;
   planos?: readonly PlanoDoCadastro[];
   /** O plano padrão quando ele é oferecido — "sem mexer, vale o padrão" —, senão o primeiro. */
   planoInicial?: string;
+  contratar?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -69,7 +71,7 @@ export function SignupForm({
       ? zodResolver(signupComConviteSchema)
       : zodResolver(signupSchema)) as unknown as Resolver<SignupInput & { full_name: string }>,
     defaultValues: {
-      full_name: "",
+      full_name: convite || contratar ? "" : undefined,
       org_name: "",
       cobranca_plan_id: planoInicial,
       email: convite?.email ?? "",
@@ -91,7 +93,7 @@ export function SignupForm({
           password_confirm: values.password_confirm,
         }
       : values;
-    void enviar(() => signUp(entrada, convite?.token), (res) => {
+    void enviar(() => contratar ? signUp(entrada, undefined, true) : signUp(entrada, convite?.token), (res) => {
       if (res.ok) {
         /**
          * ⚠️ O PROVEDOR JÁ DEIXOU A PESSOA ENTRAR — não existe e-mail para ela
@@ -192,20 +194,14 @@ export function SignupForm({
 
   return (
     <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      {/*
-        Só no modo CONVITE. Quem abre a própria empresa dá o nome no onboarding;
-        quem é convidado pula o onboarding e ficava sem nome para sempre —
-        aparecendo como um pedaço do identificador interno em toda tela que o
-        nomeia (medido no diálogo de transferir conversa, em produção).
-      */}
-      {convite && (
+      {(convite || contratar) && (
         <div className="space-y-1.5">
           <Label htmlFor="full_name">{t("Seu nome")}</Label>
           <Input
             id="full_name"
             type="text"
             autoComplete="name"
-            autoFocus
+            autoFocus={!contratar}
             aria-invalid={errors.full_name ? true : undefined}
             {...register("full_name")}
           />
@@ -230,7 +226,8 @@ export function SignupForm({
           )}
         </div>
       )}
-      {!convite && planos.length > 0 && (
+      {contratar && <input type="hidden" {...register("cobranca_plan_id")} />}
+      {!convite && !contratar && planos.length > 0 && (
         <div className="space-y-1.5">
           <Label htmlFor="cobranca_plan_id">{t("Plano")}</Label>
           <select id="cobranca_plan_id" className="h-10 w-full rounded-md border bg-background px-3 text-sm" {...register("cobranca_plan_id")}>

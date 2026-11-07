@@ -6,7 +6,7 @@ import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { moduloLigado } from "@/lib/instalacao/modulos";
-import { cadastroExigeEscolhaDePlano, lerPlanosDoCadastro } from "@/lib/cobranca/cadastro";
+import { cadastroExigeEscolhaDePlano, lerPlanosDoCadastro, planoDaContratacao } from "@/lib/cobranca/cadastro";
 import {
   signupSchema,
   signupComConviteSchema,
@@ -88,6 +88,7 @@ export async function signUp(
    * token com o e-mail que o provedor de auth confirmou.
    */
   inviteToken?: string,
+  contratar?: boolean,
 ): Promise<SignUpResult> {
   const temConvite = typeof inviteToken === "string" && inviteToken.trim() !== "";
   const parsed = temConvite
@@ -145,15 +146,23 @@ export async function signUp(
   }
 
   const planoEscolhido = !convite && "cobranca_plan_id" in parsed.data ? parsed.data.cobranca_plan_id : undefined;
+  const jornadaComercial = !convite && contratar === true;
   if (!convite) {
     const admin = createAdminClient();
-    if (await moduloLigado(admin, "cobranca")) {
+    const cobrancaLigada = await moduloLigado(admin, "cobranca");
+    if (jornadaComercial && (!cobrancaLigada || !parsed.data.full_name)) {
+      return { ok: false, error: "validation_error" };
+    }
+    if (cobrancaLigada) {
       // Recusa ANTES de criar a conta no GoTrue o que o gatilho da 0679 recusaria
       // depois — senão o usuário ficaria órfão, sem organização. Leitura dos
       // PLANOS que falha recusa: é ação, não informação. A da CHAVE do módulo, não:
       // `moduloLigado` trata a falha como "desligado", e aí a conta nasce e quem
       // decide é o gatilho; se ele recusar, a saída é /get-started, que pede o plano.
       const planos = await lerPlanosDoCadastro(admin);
+      if (jornadaComercial && (!planoEscolhido || planoDaContratacao(planos?.oferecidos ?? [])?.id !== planoEscolhido)) {
+        return { ok: false, error: "validation_error", details: { cobranca_plan_id: ["plano_indisponivel"] } };
+      }
       if (planoEscolhido) {
         if (!planos?.oferecidos.some((p) => p.id === planoEscolhido)) {
           return { ok: false, error: "validation_error", details: { cobranca_plan_id: ["plano_indisponivel"] } };
@@ -238,7 +247,11 @@ export async function signUp(
             invite_token: convite,
             full_name: (parsed.data as SignupComConviteInput).full_name,
           }
-        : { org_name: (parsed.data as SignupInput).org_name, ...(planoEscolhido ? { cobranca_plan_id: planoEscolhido } : {}) },
+        : {
+            org_name: (parsed.data as SignupInput).org_name,
+            ...(planoEscolhido ? { cobranca_plan_id: planoEscolhido } : {}),
+            ...(jornadaComercial ? { contratar_profissional: true, full_name: parsed.data.full_name } : {}),
+          },
     },
   });
 

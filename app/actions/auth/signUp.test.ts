@@ -146,7 +146,7 @@ describe("signUp — o plano do cadastro com a cobrança ligada", () => {
   // Os filtros da leitura são APLICADOS sobre linhas de verdade: um mock que os
   // ignorasse deixaria verde a remoção de `.is("arquivado_em", null)` ou de um `.eq`.
   type LinhaDePlano = { id: string; oferecido_ao_cliente: boolean; padrao_no_cadastro: boolean; arquivado_em: string | null };
-  function planos(p: { oferecidos: string[]; padrao: string | null; arquivados?: string[]; erro?: boolean }) {
+  function planos(p: { oferecidos: string[]; padrao: string | null; arquivados?: string[]; erro?: boolean; profissional?: boolean; dias?: number }) {
     const linhas: LinhaDePlano[] = [
       ...p.oferecidos.map((id) => ({ id, oferecido_ao_cliente: true, padrao_no_cadastro: id === p.padrao, arquivado_em: null })),
       ...(p.padrao && !p.oferecidos.includes(p.padrao)
@@ -160,7 +160,7 @@ describe("signUp — o plano do cadastro com a cobrança ligada", () => {
         is: vi.fn((col: keyof LinhaDePlano, v: unknown) => { filtradas = filtradas.filter((l) => l[col] === v); return q; }),
         eq: vi.fn((col: keyof LinhaDePlano, v: unknown) => { filtradas = filtradas.filter((l) => l[col] === v); return q; }),
         order: vi.fn(async () => (p.erro ? { data: null, error: { code: "57014" } } : {
-          data: filtradas.map(({ id }) => ({ id, nome: "Plano", preco_cents: 4990, intervalo: "mes", trial_dias: 0 })), error: null,
+          data: filtradas.map(({ id }) => ({ id, nome: p.profissional ? "Profissional" : "Plano", preco_cents: p.profissional ? 29700 : 4990, intervalo: "mes", trial_dias: p.dias ?? 0 })), error: null,
         })),
         maybeSingle: vi.fn(async () => ({ data: filtradas[0] ? { id: filtradas[0].id } : null, error: null })),
       };
@@ -187,6 +187,22 @@ describe("signUp — o plano do cadastro com a cobrança ligada", () => {
     return signUp({ ...entrada(), ...(plano ? { cobranca_plan_id: plano } : {}) });
   };
   const recusa = (motivo: string) => ({ ok: false, error: "validation_error", details: { cobranca_plan_id: [motivo] } });
+
+  it("cadastro da landing carrega nome, plano e destino de contratação até a confirmação", async () => {
+    planos({ oferecidos: [OFERECIDO], padrao: null, profissional: true });
+    const { signUp } = await import("./signUp");
+    expect(await signUp({ ...entrada(), full_name: "Pessoa Teste", cobranca_plan_id: OFERECIDO }, undefined, true)).toEqual({ ok: true, sessao_ativa: false });
+    expect(signUpDoProvedor.mock.calls[0]?.[0]?.options?.data).toMatchObject({
+      full_name: "Pessoa Teste", cobranca_plan_id: OFERECIDO, contratar_profissional: true,
+    });
+  });
+
+  it("cadastro da landing exige o Profissional sem período gratuito", async () => {
+    planos({ oferecidos: [OFERECIDO], padrao: null, profissional: true, dias: 7 });
+    const { signUp } = await import("./signUp");
+    expect(await signUp({ ...entrada(), full_name: "Pessoa Teste", cobranca_plan_id: OFERECIDO }, undefined, true)).toEqual(recusa("plano_indisponivel"));
+    expect(signUpDoProvedor).not.toHaveBeenCalled();
+  });
 
   it("⭐ plano oferecido e sem padrão: cadastro sem escolha é recusado e a conta não nasce", async () => {
     planos({ oferecidos: [OFERECIDO], padrao: null });
