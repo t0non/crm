@@ -42,11 +42,11 @@ export default async function MetaDeVendasPage() {
     .from("crm_metas")
     .select("alvo")
     .eq("organization_id", activeOrg.orgId)
-    .eq("indicador", "vendas_ganhas")
     .is("pipeline_id", null)
     .eq("periodo", `${mes}-01`)
+    .eq("indicador", "valor_vendas_ganhas")
     .maybeSingle();
-  const alvoAtual = ((data as { alvo?: number } | null)?.alvo ?? null) as number | null;
+  const alvoFaturamento = data?.alvo ?? null;
 
   const idioma = user.idioma;
   const t = (texto: string) => traduzir(texto, idioma);
@@ -57,18 +57,12 @@ export default async function MetaDeVendasPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t("Meta de vendas")}</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           {t(
-            "Quanto a empresa quer vender neste mês. O Desempenho passa a mostrar o quanto já foi feito contra esse número — o realizado, o percentual e o quanto falta.",
+            "Defina quanto a empresa quer faturar no mês. A tela Início mostra o valor das vendas ganhas, o percentual da meta e quanto falta.",
           )}
         </p>
       </header>
 
-      <FormularioDaMeta mes={mes} alvoAtual={alvoAtual} />
-
-      <p className="max-w-2xl text-xs text-muted-foreground">
-        {t(
-          "Nesta primeira versão a meta é da EMPRESA inteira, para a quantidade de vendas ganhas: o que conta é o negócio fechado como ganho dentro do mês. Meta por vendedor, por período maior e por funil ficam para as próximas fatias.",
-        )}
-      </p>
+      <FormularioDaMeta mes={mes} alvoAtual={alvoFaturamento} moeda={activeOrg.currency ?? "BRL"} />
     </div>
   );
 }

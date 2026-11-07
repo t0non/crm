@@ -60,22 +60,10 @@ export function ConexoesShell({
   const router = useRouter();
   const params = useSearchParams();
   const abaParam = params.get("aba");
-  const aba =
-    abaParam === "adicionais"
-      ? "adicionais"
-      : abaParam === "sociais"
-        ? "sociais"
-        : abaParam === "oficial"
-          ? "oficial"
-          : abaParam === "parceiro"
-            ? "parceiro"
-            : abaParam === "telefonia"
-              ? "telefonia"
-              : abaParam === "voz"
-                ? "voz"
-                : abaParam === "graph" && graphParceiro
-                  ? "graph"
-                  : "numeros";
+  // Só duas portas na tela: número por QR e API oficial da Meta. As demais
+  // conexões (parceiro, telefone, redes sociais, voz…) continuam no código,
+  // mas saíram da vista — um ?aba= antigo cai em "Números por QR".
+  const aba = abaParam === "oficial" ? "oficial" : "numeros";
   const sub = params.get("sub") === "templates" ? "templates" : "conexao";
 
   const irPara = (proximaAba: string, proximaSub?: string): void => {
@@ -102,19 +90,7 @@ export function ConexoesShell({
             estrito: o dia em que alguém escrever o nome do provider aqui DE VERDADE,
             ele reprova igual. */}
         <TabsTrigger value="numeros">{t("Números por QR")}</TabsTrigger>
-        {canalInstanciaPreferido && (
-          <TabsTrigger value="adicionais">Outras conexões QR</TabsTrigger>
-        )}
         <TabsTrigger value="oficial">{t("API Oficial (Meta)")}</TabsTrigger>
-        {/* "Provedor parceiro" e não a marca: o rótulo da marca vem do servidor
-            (`lib/channels/connect`), porque a tela não pode nomear provider — e
-            porque no dia em que houver um segundo parceiro esta aba não muda.
-            Aqui fica o CONCEITO; lá dentro o cartão diz de quem se trata. */}
-        <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
-        <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
-        <TabsTrigger value="sociais">{t("Redes sociais")}</TabsTrigger>
-        <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
-        {graphParceiro && <TabsTrigger value="graph">{graphParceiro.label}</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="numeros" className="mt-0">

@@ -1532,3 +1532,13 @@
 .inbox-chat-canvas {
   background-color: var(--color-surface-elevated);
 }
+
+/* ═══ Tudo um pouco maior no computador ═══
+   17px em vez de 16px como base: texto, botões e espaços (que são em rem)
+   crescem ~6% juntos, sem desalinhar nada. No celular fica 16px, que já é o
+   tamanho de leitura confortável lá. */
+@media (min-width: 768px) {
+  html {
+    font-size: 106.25%;
+  }
+}

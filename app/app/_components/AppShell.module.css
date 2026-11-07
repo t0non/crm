@@ -1,0 +1,631 @@
+.shell {
+  /* Uma fonte só no sistema inteiro: a mesma Inter do resto do produto. */
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  background: var(--color-bg);
+}
+.shell [data-shell-sidebar] {
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+  box-shadow: none;
+}
+.shell [data-shell-sidebar] nav {
+  padding: 18px 5px 8px;
+}
+.shell [data-shell-sidebar] nav h2 > button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--color-text);
+}
+.shell [data-shell-sidebar] nav h2 > button[data-reference-group-active="true"] {
+  background: var(--color-accent-100);
+  color: var(--color-accent-700);
+  font-weight: 600;
+}
+.shell [data-shell-sidebar] nav ul {
+  padding: 3px 0 3px 14px;
+}
+.shell [data-shell-sidebar] nav li > a {
+  font-size: 15px;
+  min-height: 36px;
+  border-radius: 4px;
+}
+.shell [data-reference-inbox] {
+  background: var(--color-bg);
+}
+@media (min-width: 1024px) {
+  .shell [data-reference-inbox][data-empty-selection="true"] {
+    grid-template-columns: minmax(300px, 32%) 1fr !important;
+  }
+  .shell [data-reference-inbox][data-empty-selection="true"] > [data-inbox-column="ficha"] {
+    display: none;
+  }
+}
+.shell [data-reference-inbox][data-empty-selection="true"] > [role="separator"] {
+  display: none;
+}
+
+/* Superfície de trabalho: conserva as ações existentes e muda sua composição. */
+.shell {
+  --workspace-paper: #fff;
+  --workspace-canvas: #f5f5f5;
+  --workspace-ink: #303740;
+  /* #5f6873 sobre branco dá 5,7:1 (o #8c949d de antes dava 3:1, abaixo do AA). */
+  --workspace-muted: #5f6873;
+  --workspace-line: #e2e4e7;
+  --workspace-blue: var(--color-accent, #2563eb);
+  --workspace-top: 3.5rem;
+  background: var(--workspace-canvas);
+  color: var(--workspace-ink);
+}
+.shell [data-shell-sidebar] {
+  background: var(--workspace-paper);
+}
+[data-theme="dark"] .shell {
+  --workspace-paper: #171d26;
+  --workspace-canvas: #10151d;
+  --workspace-ink: #e7eaf0;
+  --workspace-muted: #9da8b5;
+  --workspace-line: #303a46;
+}
+.workbench > div > main {
+  padding: 0 !important;
+  background: var(--workspace-canvas);
+}
+.workbench [data-reference-inbox] {
+  height: calc(
+    100dvh - var(--faixas-de-cima, 0px) - var(--workspace-top) - var(--rodape-ocupado, 0px)
+  );
+  min-height: 0;
+  background: var(--workspace-canvas);
+}
+.workbench [data-inbox-column] {
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  margin: 0;
+  background: var(--workspace-paper);
+}
+.workbench [data-inbox-column="lista"] {
+  border-right: 1px solid var(--workspace-line);
+}
+.workbench [data-inbox-column="conversa"] {
+  background: var(--workspace-canvas);
+}
+.workbench [data-inbox-column="conversa"] > header {
+  border-radius: 0;
+  min-height: 64px;
+  background: var(--workspace-paper);
+  padding: 10px 20px;
+}
+.workbench [data-conversation-id] {
+  border-radius: 0;
+  padding: 14px 18px;
+  min-height: 82px;
+  gap: 14px;
+}
+.workbench [data-conversation-row] {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  border-radius: 0;
+  background: var(--workspace-paper);
+}
+.workbench [data-conversation-row][data-selected="true"] {
+  background: var(--workspace-blue);
+  color: #fff;
+}
+.workbench [data-inbox-column="lista"] > h1 {
+  font-size: 16px;
+  padding-top: 10px;
+}
+.workbench [data-inbox-column="lista"] [role="tablist"] {
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  gap: 0;
+}
+.workbench [data-inbox-column="lista"] [role="tab"] {
+  border-radius: 0;
+  box-shadow: none;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.workbench [data-inbox-filters] > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+}
+.workbench [data-inbox-filters] > div:first-child > div:nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+.workbench [data-inbox-filters] > div:first-child input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+@media (min-width: 1536px) {
+  .workbench [data-inbox-filters] [role="tablist"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+.workbench [data-conversation-id][aria-current="true"] {
+  background: var(--workspace-blue);
+  color: #fff;
+}
+.workbench [data-conversation-id][aria-current="true"] :where(span, p, time) {
+  color: inherit;
+}
+.workbench [data-chat-thread] {
+  background: var(--workspace-canvas);
+}
+.workbench [data-testid="message-bubble"][data-message-plain="true"] {
+  border-radius: 12px;
+  box-shadow: none;
+}
+.workbench [data-testid="message-bubble"][data-message-plain="true"][data-direction="inbound"] {
+  background: var(--workspace-paper);
+  border-color: var(--workspace-line);
+}
+.workbench
+  [data-testid="message-bubble"][data-message-plain="true"][data-direction="outbound"]:not(
+    [data-message-failed="true"]
+  ) {
+  background: var(--color-accent, #2563eb);
+  color: #fff;
+  border-color: transparent;
+  border-bottom-right-radius: 3px;
+}
+.workbench
+  [data-testid="message-bubble"][data-message-plain="true"][data-direction="outbound"]:not(
+    [data-message-failed="true"]
+  )
+  :where(p, span, small) {
+  color: inherit;
+}
+.workbench [data-chat-composer] {
+  margin: 0 14px 14px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 3px;
+  background: var(--workspace-paper);
+  box-shadow: 0 2px 8px #00000008;
+}
+.workbench [data-crm-details] {
+  background: var(--workspace-paper);
+  padding: 0;
+  gap: 0;
+  border-left: 0;
+  border-right: 6px solid var(--workspace-line);
+}
+.workbench [data-crm-details] > div:first-child {
+  margin: 0;
+  padding: 18px 24px;
+  background: var(--crm-painel-topo, #1e293b);
+  color: #fff;
+  border: 0;
+}
+.workbench [data-crm-details] > div:first-child :where(span, button) {
+  color: inherit;
+}
+/* O botão de recolher no topo escuro: sem fundo próprio. Com o fundo do
+   cartão (claro) e o texto herdado (branco), ele virava uma pílula vazia. */
+.workbench [data-crm-details] > div:first-child button {
+  background: transparent;
+  border-color: #ffffff40;
+}
+.workbench [data-crm-details] > div:first-child button:hover {
+  background: #ffffff1a;
+}
+.workbench [data-crm-summary] [data-crm-summary-funil] {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+.workbench [data-crm-summary] [data-crm-summary-etapas] {
+  display: flex;
+  gap: 3px;
+  margin-top: -6px;
+}
+.workbench [data-crm-summary] [data-crm-summary-etapas] > span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffffff33;
+}
+.workbench [data-crm-summary] [data-crm-summary-etapas] > span[data-cheia] {
+  background: #60a5fa;
+}
+.workbench [data-crm-summary] {
+  padding: 12px 24px 0;
+  background: var(--crm-painel-topo, #1e293b);
+  color: #fff;
+}
+.workbench [data-crm-summary] > strong {
+  font-size: 13px;
+  font-weight: 500;
+  display: block;
+  padding-bottom: 14px;
+  border-bottom: 0;
+}
+.workbench [data-crm-summary] > nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+.workbench [data-crm-summary] button {
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 0;
+  background: transparent;
+  color: #d9e8ed;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+.workbench [data-crm-summary] button[aria-current="location"] {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+.workbench [data-crm-summary] button:focus-visible {
+  outline: 2px solid #a5e3ff;
+  outline-offset: 2px;
+}
+.workbench [data-crm-details] > section {
+  padding: 20px 24px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  scroll-margin-top: 65px;
+}
+.workbench [data-crm-details] > section > div {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.workbench [data-crm-details] [data-testid="inbox-principal"] > div > div:first-child {
+  padding: 0 0 14px;
+  background: transparent;
+  border-radius: 0;
+}
+.workbench [data-crm-details] [data-testid="inbox-principal"] > div > div:nth-child(2) {
+  padding: 12px 0;
+}
+.workbench [data-crm-details] [data-testid="inbox-principal"] button {
+  border-radius: 3px;
+  font-size: 12px;
+}
+.workbench [data-pipeline-workspace] {
+  height: calc(
+    100dvh - var(--faixas-de-cima, 0px) - var(--workspace-top) - var(--rodape-ocupado, 0px)
+  );
+  min-height: 0;
+  gap: 0;
+  background: var(--workspace-canvas);
+}
+.workbench [data-pipeline-workspace] > header {
+  min-height: 64px;
+  padding: 10px 28px;
+  border-bottom: 1px solid var(--workspace-line);
+  background: var(--workspace-paper);
+  gap: 16px;
+}
+.workbench [data-pipeline-workspace] > header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.workbench [data-pipeline-workspace] > header button {
+  border-radius: 3px;
+  font-size: 12px;
+  min-height: 34px;
+}
+.workbench [data-pipeline-workspace] > header button:last-child {
+  box-shadow: none;
+}
+.workbench [data-pipeline-workspace] > p {
+  font-size: 11px;
+  margin: 0;
+  padding: 7px 28px;
+  color: var(--workspace-muted);
+}
+.workbench [data-pipeline-workspace] > div:not([data-quadro-do-funil]) {
+  border-radius: 0;
+}
+.workbench [data-quadro-do-funil] {
+  padding: 0 28px 20px;
+  background: var(--workspace-canvas);
+}
+.workbench [data-faixa-das-etapas] {
+  gap: 20px;
+}
+.workbench [data-etapa-do-quadro] {
+  width: 312px;
+  max-width: 312px;
+  flex-basis: 312px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.workbench [data-cabecalho-da-etapa] {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid var(--reference-stage-color, #bcc0c4);
+  background: var(--workspace-canvas);
+}
+.workbench [data-cabecalho-da-etapa] > div > div:first-child {
+  position: relative;
+  padding: 13px 8px 8px;
+  border: 0;
+  gap: 6px;
+}
+.workbench [data-cabecalho-da-etapa] h2 {
+  text-align: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.workbench [data-cabecalho-da-etapa] h2 input {
+  font-size: 12px;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.workbench [data-cabecalho-da-etapa] > div > div:nth-child(2) {
+  padding: 0 6px 9px;
+  border: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--workspace-muted);
+}
+.workbench [data-etapa-do-quadro] > div:nth-child(2) {
+  padding: 8px 0;
+  gap: 5px;
+}
+.workbench [data-pipeline-card] {
+  border-radius: 3px;
+  border: 1px solid #c9cdd1;
+  padding: 8px 10px;
+  background: var(--workspace-paper);
+  box-shadow: none;
+}
+.workbench [data-pipeline-card] h3 {
+  height: auto;
+  min-height: 20px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #0069bd;
+}
+.workbench [data-pipeline-card] > p {
+  margin-top: 2px;
+  height: auto;
+  font-size: 12px;
+}
+.workbench [data-pipeline-card] > div:last-child {
+  margin-top: 4px;
+  padding-top: 4px;
+  min-height: 22px;
+  font-size: 11px;
+}
+@media (min-width: 1280px) {
+  .workbench [data-inbox-column="lista"] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .workbench [data-inbox-column="ficha"] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .workbench [data-inbox-column="conversa"] {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .workbench [data-reference-inbox][data-empty-selection="true"] [data-inbox-column="conversa"] {
+    grid-column: 2;
+  }
+}
+@media (min-width: 768px) {
+  .shell {
+    --workspace-top: 0px;
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: calc(100dvh - var(--faixas-de-cima, 0px));
+    min-height: 0;
+  }
+  .shell > [data-shell-navigation] {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 0;
+  }
+  .shell > [data-shell-navigation] > [data-shell-sidebar] {
+    height: 100%;
+    min-height: 0;
+    top: 0;
+    width: 240px;
+  }
+  .shell > [data-shell-content] {
+    display: contents;
+  }
+  .shell [data-shell-toolbar] {
+    position: static;
+    grid-column: 1;
+    grid-row: 2;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    display: flex;
+    flex-wrap: wrap;
+    padding: 8px;
+    gap: 8px;
+    border: 0;
+    border-right: 1px solid var(--workspace-line);
+    background: var(--workspace-paper);
+    z-index: 30;
+  }
+  .shell [data-shell-toolbar] > div:nth-child(2) {
+    order: -1;
+    flex: 1 0 100%;
+    max-width: none;
+  }
+  .shell [data-shell-toolbar] > div:last-child {
+    margin-left: auto;
+  }
+  .shell > [data-shell-content] > main {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-height: 0;
+    overflow: auto;
+  }
+  .shell[data-sidebar-collapsed="true"] {
+    --workspace-top: 3.5rem;
+    grid-template-columns: 64px minmax(0, 1fr);
+    grid-template-rows: 3.5rem minmax(0, 1fr);
+  }
+  .shell[data-sidebar-collapsed="true"] > [data-shell-navigation] {
+    grid-row: 1 / span 2;
+  }
+  .shell[data-sidebar-collapsed="true"] > [data-shell-navigation] > [data-shell-sidebar] {
+    width: 64px;
+  }
+  .shell[data-sidebar-collapsed="true"] [data-shell-toolbar] {
+    grid-column: 2;
+    grid-row: 1;
+    height: 3.5rem;
+    flex-wrap: nowrap;
+    border-bottom: 1px solid var(--workspace-line);
+    border-right: 0;
+  }
+  .shell[data-sidebar-collapsed="true"] [data-shell-toolbar] > div:nth-child(2) {
+    order: 0;
+    flex: 1 1 auto;
+    max-width: 28rem;
+  }
+  .shell[data-sidebar-collapsed="true"] > [data-shell-content] > main {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+@media (max-width: 767px) {
+  .workbench [data-pipeline-workspace] > header {
+    padding: 12px 16px;
+  }
+  .workbench [data-pipeline-workspace] > p {
+    padding-inline: 16px;
+  }
+  .workbench [data-quadro-do-funil] {
+    padding: 0 16px 16px;
+  }
+  .workbench [data-etapa-do-quadro] {
+    width: 85vw;
+    max-width: 312px;
+    flex-basis: 85vw;
+  }
+  .workbench [data-chat-composer] {
+    margin: 0 8px 8px;
+  }
+}
+
+.workbench [data-crm-summary] {
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+}
+.workbench [data-crm-details] > section {
+  scroll-margin-top: 180px;
+}
+
+/* Caixa de seleção em lote da conversa: só aparece ao passar o mouse, ao
+   navegar pelo teclado ou quando já está marcada — e não ocupa espaço na
+   linha, que fica com a cara de lista de atendimento. */
+.workbench [data-conversation-row] > button[role="checkbox"] {
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  z-index: 2;
+  margin: 0;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.workbench [data-conversation-row]:hover > button[role="checkbox"],
+.workbench [data-conversation-row] > button[role="checkbox"]:focus-visible,
+.workbench [data-conversation-row] > button[role="checkbox"][aria-checked="true"] {
+  opacity: 1;
+}
+
+
+/* ═══ Padrão de leitura do sistema ═══
+   Letra mínima de 12px, alvo de toque de 40px nos botões e contraste AA.
+   Vale para todas as telas internas, para que nenhuma fique com texto
+   miúdo de 10–11px que uma pessoa com vista cansada não lê. */
+.shell :global(.text-\[10px\]),
+.shell :global(.text-\[11px\]) {
+  font-size: 12px !important;
+}
+.shell :global(.text-muted-foreground),
+.shell :global(.text-text-muted) {
+  color: var(--workspace-muted);
+}
+.shell main :global(button.h-8),
+.shell main :global(a.h-8) {
+  min-height: 36px;
+}
+.shell main h1 {
+  letter-spacing: -0.01em;
+}
+@media (max-width: 767px) {
+  /* No celular, campos de digitar e escolher têm pelo menos 44px de altura. */
+  .shell main :global(select),
+  .shell main :global(input:not([type="checkbox"]):not([type="radio"])) {
+    min-height: 44px;
+  }
+  .shell main :global(input),
+  .shell main :global(textarea),
+  .shell main :global(select) {
+    /* 16px impede o zoom automático do iPhone ao tocar no campo. */
+    font-size: 16px;
+  }
+}
+
+/* "Mais informações do cliente": o que não é essencial fica recolhido, com o
+   mesmo respiro lateral das seções de cima. */
+.workbench [data-crm-details] > [data-crm-mais] {
+  padding: 4px 24px 24px;
+}
+.workbench [data-crm-details] > [data-crm-mais] > summary {
+  min-height: 44px;
+  border-top: 1px solid var(--workspace-line);
+}
+/* A etapa no topo do painel é um botão que abre a lista de etapas. */
+.workbench [data-crm-summary] > strong button {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 0;
+  border: 0;
+}
+/* A ficha em linhas: os ajustes antigos do cartão de contato não valem mais. */
+.workbench [data-crm-details] [data-testid="inbox-principal"] > div > div:nth-child(2) {
+  padding: 0;
+}
+.workbench [data-crm-details] [data-testid="inbox-principal"] button {
+  font-size: inherit;
+}
+/* No computador com a barra aberta, a faixa de ferramentas sai de cena: o que
+   ela tinha (ajuda, avisos, usuário) está no rodapé da barra lateral. */
+@media (min-width: 768px) {
+  .shell:not([data-sidebar-collapsed="true"]) [data-shell-toolbar] {
+    display: none;
+  }
+}

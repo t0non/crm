@@ -54,6 +54,15 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const isAdminSurface = host.startsWith("admin.") || pathname.startsWith("/admin");
 
+  // O laboratório usa exemplos estáticos e pode ser aberto sem sessão no preview local.
+  if (
+    process.env.NODE_ENV === "development" &&
+    pathname === "/design" &&
+    ["127.0.0.1", "localhost"].includes(request.nextUrl.hostname)
+  ) {
+    return response;
+  }
+
   if (isPublicPath(pathname)) {
     return response;
   }

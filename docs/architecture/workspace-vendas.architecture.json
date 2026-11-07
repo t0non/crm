@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Composição da área de vendas",
+    "subtitle": "Dados existentes, ficha central e continuidade de atendimento",
+    "output": "workspace-vendas.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "entrada", "label": "Entrada" },
+    { "id": "tela", "label": "Composição" },
+    { "id": "operacao", "label": "Operação existente" }
+  ],
+  "mainPath": ["shell", "inbox", "conversa"],
+  "nodes": [
+    {
+      "id": "shell",
+      "lane": "entrada",
+      "col": 0,
+      "type": "frontend",
+      "label": "AppShell: navegação e PT Sans local"
+    },
+    {
+      "id": "inbox",
+      "lane": "tela",
+      "col": 1,
+      "type": "frontend",
+      "label": "InboxLayout: lista → ficha → conversa"
+    },
+    {
+      "id": "ficha",
+      "lane": "operacao",
+      "col": 2,
+      "type": "frontend",
+      "label": "CRMSidePanel: contato, lead, tarefas e memória"
+    },
+    {
+      "id": "conversa",
+      "lane": "operacao",
+      "col": 3,
+      "type": "frontend",
+      "label": "ChatThread + Composer: histórico e resposta"
+    },
+    {
+      "id": "funil",
+      "lane": "tela",
+      "col": 1,
+      "type": "frontend",
+      "label": "Pipeline: filtros e quadro existente"
+    },
+    {
+      "id": "cards",
+      "lane": "operacao",
+      "col": 2,
+      "type": "frontend",
+      "label": "StageColumn + KanbanCard: leads reais"
+    }
+  ],
+  "edges": [
+    { "from": "shell", "to": "inbox", "label": "rota Inbox" },
+    { "from": "inbox", "to": "ficha", "label": "contato selecionado" },
+    { "from": "inbox", "to": "conversa", "label": "conversa selecionada" },
+    { "from": "ficha", "to": "conversa", "label": "contexto de atendimento" },
+    { "from": "shell", "to": "funil", "label": "rota do funil" },
+    { "from": "funil", "to": "cards", "label": "etapas e leads filtrados" },
+    { "from": "cards", "to": "ficha", "label": "abrir lead" }
+  ]
+}

@@ -71,7 +71,9 @@ vi.mock("@/components/inbox/ChatThread", () => ({ ChatThread: () => null }));
 vi.mock("@/components/inbox/Composer", () => ({ Composer: () => null }));
 vi.mock("@/components/inbox/ConversationHeader", () => ({ ConversationHeader: () => null }));
 vi.mock("@/components/inbox/RetentionNotice", () => ({ RetentionNotice: () => null }));
-vi.mock("@/components/inbox/InboxKeyboardShortcuts", () => ({ InboxKeyboardShortcuts: () => null }));
+vi.mock("@/components/inbox/InboxKeyboardShortcuts", () => ({
+  InboxKeyboardShortcuts: () => null,
+}));
 vi.mock("@/components/inbox/ShortcutsHelpDialog", () => ({ ShortcutsHelpDialog: () => null }));
 vi.mock("@/components/inbox/JanelaFechadaAviso", () => ({ JanelaFechadaAviso: () => null }));
 
@@ -263,7 +265,11 @@ describe("a regra pura — limites, piso da conversa e memória por faixa", () =
 let larguraGrade = 1040;
 
 function janelaEm(largura: number): void {
-  Object.defineProperty(window, "innerWidth", { value: largura, configurable: true, writable: true });
+  Object.defineProperty(window, "innerWidth", {
+    value: largura,
+    configurable: true,
+    writable: true,
+  });
 }
 
 function montar(props: { painelRecolhidoInicial?: boolean } = {}) {
@@ -327,7 +333,9 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
     janelaEm(500);
     montar();
     // A tela monta (a pergunta de sempre está lá), só a alça que não existe.
-    expect(await screen.findByText("Selecione uma conversa")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Receba e responda todas as mensagens em um só lugar."),
+    ).toBeInTheDocument();
     expect(screen.queryAllByRole("separator")).toEqual([]);
   });
 
@@ -335,6 +343,11 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
     montar();
     const lista = await alca(0);
     const ficha = await alca(1);
+    expect(
+      Array.from(grade().querySelectorAll("[data-inbox-column]"), (node) =>
+        node.getAttribute("data-inbox-column"),
+      ),
+    ).toEqual(["lista", "ficha", "conversa"]);
     expect(lista).toHaveAttribute("aria-orientation", "vertical");
     expect(lista).toHaveAttribute("aria-valuenow", "272");
     expect(lista).toHaveAttribute("aria-valuemin", "240");
@@ -362,7 +375,7 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
       lista: 272 + 2 * PASSO_TECLADO,
       ficha: 296,
     });
-    expect(grade().style.gridTemplateColumns).toBe("304px minmax(0,1fr) 296px");
+    expect(grade().style.gridTemplateColumns).toBe("304px 296px minmax(0,1fr)");
   });
 
   it("arrastar prende no limite e no piso da conversa, e persiste no pointerup", async () => {
@@ -395,13 +408,11 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
 
     fireEvent.pointerDown(ficha, { button: 0, pointerId: 1 });
     // 600px de ficha: o piso da conversa rebaixa a ficha (e a lista, se preciso).
-    fireEvent.pointerMove(window, { clientX: larguraGrade - 600 });
+    fireEvent.pointerMove(window, { clientX: 272 + 600 });
     const agora = Number(ficha.getAttribute("aria-valuenow"));
     expect(agora).toBeLessThanOrEqual(LIMITES_FICHA.max);
     expect(agora).toBeGreaterThanOrEqual(LIMITES_FICHA.min);
-    expect(
-      1040 - Number(alcaAgora(0).getAttribute("aria-valuenow")) - agora,
-    ).toBe(CONVERSA_MINIMA);
+    expect(1040 - Number(alcaAgora(0).getAttribute("aria-valuenow")) - agora).toBe(CONVERSA_MINIMA);
     fireEvent.pointerUp(window);
 
     expect(JSON.parse(window.localStorage.getItem(CHAVE_XL) ?? "null")).toEqual({
@@ -434,7 +445,7 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
     // 600 não cabe (teto 520) e ainda roubaria a conversa: fica o que sobra.
     expect(lista).toHaveAttribute("aria-valuenow", String(1040 - 296 - CONVERSA_MINIMA));
     expect(ficha).toHaveAttribute("aria-valuenow", "296");
-    expect(grade().style.gridTemplateColumns).toBe("324px minmax(0,1fr) 296px");
+    expect(grade().style.gridTemplateColumns).toBe("324px 296px minmax(0,1fr)");
   });
 
   it("recolhido o divisor da lista aproveita o espaço da ficha; aberto, o teto é o de hoje (#3046)", async () => {
@@ -491,15 +502,15 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
     expect(grade().style.gridTemplateColumns).toBe("");
   });
 
-  it("seta direita na alça da ficha leva a alça para a direita (a ficha encolhe)", async () => {
+  it("seta direita na alça da ficha central expande a ficha", async () => {
     montar();
     const ficha = await alca(1);
-    expect(ficha.style.right).toBe("296px");
+    expect(ficha.style.left).toBe("568px");
     fireEvent.keyDown(ficha, { key: "ArrowRight" });
-    expect(ficha).toHaveAttribute("aria-valuenow", String(296 - PASSO_TECLADO));
-    expect(ficha.style.right).toBe(`${296 - PASSO_TECLADO}px`);
+    expect(ficha).toHaveAttribute("aria-valuenow", String(296 + PASSO_TECLADO));
+    expect(ficha.style.left).toBe(`${272 + 296 + PASSO_TECLADO}px`);
     fireEvent.keyDown(ficha, { key: "ArrowLeft" });
-    expect(ficha.style.right).toBe("296px");
+    expect(ficha.style.left).toBe("568px");
   });
 
   it("armazenamento bloqueado no navegador não derruba o Inbox", async () => {
@@ -512,7 +523,9 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
     });
     try {
       montar();
-      expect(await screen.findByText("Selecione uma conversa")).toBeInTheDocument();
+      expect(
+        await screen.findByText("Receba e responda todas as mensagens em um só lugar."),
+      ).toBeInTheDocument();
       const lista = await alca(0);
       fireEvent.keyDown(lista, { key: "ArrowRight" });
       expect(lista).toHaveAttribute("aria-valuenow", String(272 + PASSO_TECLADO));

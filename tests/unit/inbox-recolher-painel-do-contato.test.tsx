@@ -139,7 +139,9 @@ vi.mock("@/components/inbox/ChatThread", () => ({ ChatThread: () => null }));
 vi.mock("@/components/inbox/Composer", () => ({ Composer: () => null }));
 vi.mock("@/components/inbox/ConversationHeader", () => ({ ConversationHeader: () => null }));
 vi.mock("@/components/inbox/RetentionNotice", () => ({ RetentionNotice: () => null }));
-vi.mock("@/components/inbox/InboxKeyboardShortcuts", () => ({ InboxKeyboardShortcuts: () => null }));
+vi.mock("@/components/inbox/InboxKeyboardShortcuts", () => ({
+  InboxKeyboardShortcuts: () => null,
+}));
 vi.mock("@/components/inbox/ShortcutsHelpDialog", () => ({ ShortcutsHelpDialog: () => null }));
 vi.mock("@/components/inbox/JanelaFechadaAviso", () => ({ JanelaFechadaAviso: () => null }));
 vi.mock("@/components/inbox/NumeroForaDoAr", () => ({ NumeroForaDoAr: () => null }));
@@ -206,8 +208,8 @@ function grade(): HTMLElement {
   return el;
 }
 
-const trilhaDaFicha = "xl:grid-cols-[272px_1fr_296px]";
-const trilhaDoTrilho = "xl:grid-cols-[272px_1fr_2.75rem]";
+const trilhaDaFicha = "xl:grid-cols-[272px_296px_1fr]";
+const trilhaDoTrilho = "xl:grid-cols-[272px_2.75rem_1fr]";
 
 const botaoRecolher = () => screen.getByRole("button", { name: "Recolher painel do contato" });
 const botaoExpandir = () => screen.getByRole("button", { name: "Expandir painel do contato" });
@@ -294,7 +296,7 @@ describe("Inbox — recolher o painel do contato (#3004)", () => {
     montar(true);
     await screen.findByTestId("inbox-painel-recolhido");
     await waitFor(() =>
-      expect(grade().style.gridTemplateColumns).toBe("300px minmax(0,1fr) 2.75rem"),
+      expect(grade().style.gridTemplateColumns).toBe("300px 2.75rem minmax(0,1fr)"),
     );
   });
 
@@ -304,7 +306,10 @@ describe("Inbox — recolher o painel do contato (#3004)", () => {
     // ganhava uma terceira trilha de 2.75rem vazia.
     window.innerWidth = 1000;
     try {
-      window.localStorage.setItem("inbox:divisorias:md", JSON.stringify({ lista: 320, ficha: 300 }));
+      window.localStorage.setItem(
+        "inbox:divisorias:md",
+        JSON.stringify({ lista: 320, ficha: 300 }),
+      );
       montar(true);
       await waitFor(() => expect(grade().style.gridTemplateColumns).toBe("320px minmax(0,1fr)"));
     } finally {

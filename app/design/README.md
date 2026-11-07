@@ -17,7 +17,7 @@ pnpm dev
 # acesse http://127.0.0.1:3000/design  (ou :3001 se a 3000 estiver ocupada)
 ```
 
-A rota é pública (sem auth) e tem `robots: noindex`.
+O preview local em desenvolvimento abre sem sessão. A rota tem `robots: noindex`.
 
 ## Como ler
 
@@ -32,11 +32,11 @@ A rota é pública (sem auth) e tem `robots: noindex`.
 ## Direção visual
 
 > Soft-tech / calmo — neutros desaturados (greige/warm-gray, **não** slate/zinc),
-> 1 accent forte mas não saturado, motion fluido, whitespace generoso, hierarquia
+> 1 accent por paleta, motion fluido, whitespace generoso, hierarquia
 > tipográfica > decoração.
 
 ### Paletas (5)
-`Sage` · `Clay` · `Mist` · `Plum` · `Olive` — cada uma com 11 stops do accent,
+`Sage` · `Clay` · `Azul Voltaico` · `Plum` · `Olive` — cada uma com 11 stops do accent,
 11 stops de neutro greige, 4 estados (success/warning/error/info), versões
 **light e dark definidas separadamente** (não invertidas).
 

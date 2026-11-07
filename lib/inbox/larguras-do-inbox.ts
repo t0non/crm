@@ -146,12 +146,13 @@ export function moverPorSeta(
   coluna: "lista" | "ficha",
   atual: number,
   tecla: string,
+  posicaoDaFicha: "direita" | "centro" = "direita",
 ): number | null {
   const passo = tecla === "ArrowLeft" ? -PASSO_TECLADO : tecla === "ArrowRight" ? PASSO_TECLADO : 0;
   if (passo === 0) return null;
   return coluna === "lista"
     ? limitarLista(atual + passo)
-    : limitarFicha(atual - passo);
+    : limitarFicha(atual + (posicaoDaFicha === "centro" ? passo : -passo));
 }
 
 /** Recorte mínimo do `Storage` — o teste passa um objeto falso e segue o resto. */

@@ -225,7 +225,10 @@ export function ConversationList({
         {/* Cabeça da seleção em lote (#2484, F1): marca de uma vez tudo o que
             está na tela. Some com a lista vazia — oferecer "selecionar todas"
             quando não há nenhuma é botão de mentira. */}
-        {onAlternarSelecao && items.length > 0 && (
+        {/* Só aparece quando a seleção em lote já começou (passar o mouse numa
+            conversa mostra a caixa dela). Fixa no topo, era ruído para quem só
+            quer atender. */}
+        {onAlternarSelecao && items.length > 0 && (selecionados?.size ?? 0) > 0 && (
           <div className="mx-2 mb-1 flex items-center gap-2 px-2 py-2">
             <button
               type="button"

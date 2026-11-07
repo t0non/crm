@@ -1,5 +1,8 @@
 "use client";
 
+import { Mail, LockKeyhole } from "lucide-react";
+import styles from "./LoginForm.module.css";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
@@ -14,7 +17,15 @@ import { signInWithPassword } from "@/app/actions/auth/signInWithPassword";
 import { Eye, EyeSlash } from "@/lib/ui/icons";
 import { AvisoSemResposta, useEnvioComTeto } from "@/components/auth/teto-da-espera";
 
-export function LoginForm({ next, email }: { next?: string; email?: string }) {
+export function LoginForm({
+  next,
+  email,
+  apresentacao,
+}: {
+  next?: string;
+  email?: string;
+  apresentacao?: "landing";
+}) {
   const t = useT();
   const router = useRouter();
   const { pendente: isPending, semResposta, enviar } = useEnvioComTeto();
@@ -34,38 +45,54 @@ export function LoginForm({ next, email }: { next?: string; email?: string }) {
     setServerError(null);
     // Server Action redirects on success — no return value reaches here.
     // On failure, an error discriminator is returned and rendered inline.
-    void enviar(() => signInWithPassword(values, next), (res) => {
-      if (!res) {
-        // Should be unreachable (redirect throws), but guard anyway.
-        router.replace(next || "/app");
-        return;
-      }
-      if (res.error === "mfa_required") {
-        const params = new URLSearchParams();
-        if (next) params.set("next", next);
-        if (res.challengeId) params.set("factor", res.challengeId);
-        router.replace(`/login/mfa${params.toString() ? `?${params}` : ""}`);
-        return;
-      }
-      if (res.error === "invalid_credentials") {
-        setServerError(t("Email ou senha incorretos."));
-      } else if (res.error === "rate_limited") {
-        setServerError(t("Muitas tentativas. Aguarde alguns minutos."));
-      } else if (res.error === "auth_unavailable") {
-        setServerError(t("Não foi possível verificar suas credenciais. Tente novamente em instantes."));
-      } else if (res.error === "validation_error") {
-        setServerError(t("Dados inválidos. Confira os campos."));
-      } else {
-        setServerError(t("Erro inesperado. Tente novamente."));
-      }
-    });
+    void enviar(
+      () => signInWithPassword(values, next),
+      (res) => {
+        if (!res) {
+          // Should be unreachable (redirect throws), but guard anyway.
+          router.replace(next || "/app");
+          return;
+        }
+        if (res.error === "mfa_required") {
+          const params = new URLSearchParams();
+          if (next) params.set("next", next);
+          if (res.challengeId) params.set("factor", res.challengeId);
+          router.replace(`/login/mfa${params.toString() ? `?${params}` : ""}`);
+          return;
+        }
+        if (res.error === "invalid_credentials") {
+          setServerError(t("Email ou senha incorretos."));
+        } else if (res.error === "rate_limited") {
+          setServerError(t("Muitas tentativas. Aguarde alguns minutos."));
+        } else if (res.error === "auth_unavailable") {
+          setServerError(
+            t("Não foi possível verificar suas credenciais. Tente novamente em instantes."),
+          );
+        } else if (res.error === "validation_error") {
+          setServerError(t("Dados inválidos. Confira os campos."));
+        } else {
+          setServerError(t("Erro inesperado. Tente novamente."));
+        }
+      },
+    );
   };
 
   return (
-    <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form
+      method="post"
+      onSubmit={handleSubmit(onSubmit)}
+      className={apresentacao === "landing" ? styles.form : "space-y-4"}
+      noValidate
+    >
       <div className="space-y-1.5">
-        <Label htmlFor="email">{t("Email")}</Label>
+        <Label className={apresentacao === "landing" ? "sr-only" : undefined} htmlFor="email">
+          {t("Email")}
+        </Label>
+        {apresentacao === "landing" && (
+          <Mail className={styles.emailIcon} size={17} aria-hidden="true" />
+        )}
         <Input
+          placeholder={apresentacao === "landing" ? t("Email") : undefined}
           id="email"
           type="email"
           autoComplete="email"
@@ -78,9 +105,15 @@ export function LoginForm({ next, email }: { next?: string; email?: string }) {
         )}
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="password">{t("Senha")}</Label>
+        <Label className={apresentacao === "landing" ? "sr-only" : undefined} htmlFor="password">
+          {t("Senha")}
+        </Label>
         <div className="relative">
+          {apresentacao === "landing" && (
+            <LockKeyhole className={styles.passwordIcon} size={17} aria-hidden="true" />
+          )}
           <Input
+            placeholder={apresentacao === "landing" ? t("Senha") : undefined}
             id="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
@@ -96,7 +129,13 @@ export function LoginForm({ next, email }: { next?: string; email?: string }) {
           >
             {/* Nome em sr-only, não aria-label: getByLabel(/senha/i) casa aria-label e acharia o botão junto do campo. */}
             <span className="sr-only">{t(showPassword ? "Ocultar senha" : "Mostrar senha")}</span>
-            {showPassword ? <EyeSlash size={20} aria-hidden /> : <Eye size={20} aria-hidden />}
+            {apresentacao === "landing" ? (
+              <span aria-hidden="true">{showPassword ? t("Ocultar") : t("Mostrar")}</span>
+            ) : showPassword ? (
+              <EyeSlash size={20} aria-hidden />
+            ) : (
+              <Eye size={20} aria-hidden />
+            )}
           </button>
         </div>
         {errors.password && (
@@ -113,7 +152,7 @@ export function LoginForm({ next, email }: { next?: string; email?: string }) {
       )}
       {semResposta && <AvisoSemResposta />}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? t("Entrando...") : t("Entrar")}
+        {isPending ? t("Entrando...") : t(apresentacao === "landing" ? "Iniciar sessão" : "Entrar")}
       </Button>
     </form>
   );

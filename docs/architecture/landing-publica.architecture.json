@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Landing pública e continuidade comercial",
+    "subtitle": "Apresentação local com marca resolvida e oferta canônica",
+    "output": "landing-publica.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "entrada",
+      "label": "Entradas"
+    },
+    {
+      "id": "tela",
+      "label": "Apresentação pública"
+    },
+    {
+      "id": "destinos",
+      "label": "Próximos passos"
+    }
+  ],
+  "mainPath": ["sessao", "pagina", "cadastro"],
+  "nodes": [
+    {
+      "id": "sessao",
+      "lane": "entrada",
+      "col": 0,
+      "type": "service",
+      "label": "createClient().auth.getUser()"
+    },
+    {
+      "id": "marca",
+      "lane": "entrada",
+      "col": 0,
+      "type": "service",
+      "label": "marcaDaSaida(null)"
+    },
+    {
+      "id": "oferta",
+      "lane": "entrada",
+      "col": 0,
+      "type": "service",
+      "label": "PRECO_PROFISSIONAL_CENTS"
+    },
+    {
+      "id": "pagina",
+      "lane": "tela",
+      "col": 1,
+      "type": "frontend",
+      "label": "app/page.tsx → LandingPage"
+    },
+    {
+      "id": "cadastro",
+      "lane": "destinos",
+      "col": 2,
+      "type": "frontend",
+      "label": "CAMINHO_CADASTRO_COMERCIAL"
+    },
+    {
+      "id": "login",
+      "lane": "destinos",
+      "col": 2,
+      "type": "frontend",
+      "label": "CAMINHO_LOGIN_COMERCIAL"
+    },
+    {
+      "id": "app",
+      "lane": "destinos",
+      "col": 2,
+      "type": "frontend",
+      "label": "/app para sessão autenticada"
+    },
+    {
+      "id": "loginDialog",
+      "lane": "tela",
+      "col": 1,
+      "type": "frontend",
+      "label": "Dialog em / → LoginForm com apresentação landing"
+    },
+    {
+      "id": "autenticar",
+      "lane": "destinos",
+      "col": 2,
+      "type": "service",
+      "label": "signInWithPassword / signInWithGoogle existentes"
+    }
+  ],
+  "edges": [
+    {
+      "from": "sessao",
+      "to": "pagina",
+      "label": "visitante"
+    },
+    {
+      "from": "sessao",
+      "to": "app",
+      "label": "autenticado"
+    },
+    {
+      "from": "marca",
+      "to": "pagina",
+      "label": "nome da instalação"
+    },
+    {
+      "from": "oferta",
+      "to": "pagina",
+      "label": "preço real"
+    },
+    {
+      "from": "pagina",
+      "to": "cadastro",
+      "label": "começar"
+    },
+    {
+      "from": "pagina",
+      "to": "login",
+      "label": "retornar"
+    },
+    {
+      "from": "pagina",
+      "to": "loginDialog",
+      "label": "abrir sem navegar"
+    },
+    {
+      "from": "loginDialog",
+      "to": "pagina",
+      "label": "fechar ou Escape"
+    },
+    {
+      "from": "loginDialog",
+      "to": "autenticar",
+      "label": "Zod, teto de espera e proteções existentes"
+    }
+  ]
+}

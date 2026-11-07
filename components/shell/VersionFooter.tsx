@@ -34,6 +34,9 @@ export function VersionFooter({
   // ficava com o ponto pulsando pra sempre, e o texto "Nova versão · " com o
   // número vazio, apontando para uma tela que não tem o que oferecer.
   const alerta = data.is_owner && data.update_available;
+  // Sem versão publicada (instalação de desenvolvimento) não há o que mostrar:
+  // "Versão ainda não confirmada" só confundia quem usa o CRM no dia a dia.
+  if (!label && !alerta) return null;
 
   const instalada = (
     <p
@@ -41,9 +44,6 @@ export function VersionFooter({
       title={titulo}
     >
       {collapsed && label ? label.split(".").slice(0, 2).join(".") : titulo}
-      {data.identity && data.identity.status !== "confirmed" && (
-        <span className="block text-[10px]">{t("Execução não confirmada")}</span>
-      )}
     </p>
   );
   if (!alerta) return instalada;

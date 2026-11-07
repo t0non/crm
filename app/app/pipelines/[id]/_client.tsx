@@ -208,6 +208,7 @@ export function PipelinePageClient({
 
   return (
     <div
+      data-pipeline-workspace=""
       // O QUADRO CABE NA TELA. A página rolava com a janela: o quadro media o
       // que media a coluna mais comprida, e a barra de rolagem horizontal ficava
       // no pé dele — com uma etapa cheia, era preciso descer até o fim para
@@ -264,7 +265,9 @@ export function PipelinePageClient({
         */}
         <h1
           className={
-            podeTrocar ? "sr-only" : "min-w-0 truncate text-xl font-semibold tracking-tight sm:text-2xl"
+            podeTrocar
+              ? "sr-only"
+              : "min-w-0 truncate text-xl font-semibold tracking-tight sm:text-2xl"
           }
         >
           {nomeAtual}
@@ -279,7 +282,7 @@ export function PipelinePageClient({
             <SelectTrigger
               aria-label={`${t("Trocar de funil")}: ${nomeAtual}`}
               data-testid="trocar-funil"
-              className="h-auto w-auto max-w-full min-w-0 gap-1.5 border-0 bg-transparent p-0 text-xl font-semibold tracking-tight sm:text-2xl shadow-none focus:ring-1 focus:ring-ring sm:max-w-[60%] [&>span]:truncate"
+              className="h-auto w-auto max-w-full min-w-0 gap-1.5 border-0 bg-transparent p-0 text-xl font-semibold tracking-tight shadow-none focus:ring-1 focus:ring-ring sm:max-w-[60%] sm:text-2xl [&>span]:truncate"
             >
               <SelectValue placeholder={nomeAtual} />
             </SelectTrigger>
@@ -363,7 +366,9 @@ export function PipelinePageClient({
       </header>
       {visao === "quadro" && (
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {t("Abra um cartão para ver os detalhes. Arraste-o para a próxima coluna quando o atendimento avançar.")}
+          {t(
+            "Abra um cartão para ver os detalhes. Arraste-o para a próxima coluna quando o atendimento avançar.",
+          )}
         </p>
       )}
       {etapasIniciais.length > 0 && (

@@ -66,18 +66,28 @@ describe("Sidebar agrupado", () => {
   it("renderiza os títulos de grupo na ordem de uso", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
     const titulos = screen
       .getAllByRole("heading")
       .map((el) => el.textContent?.trim())
       .filter(Boolean);
     // Organização não tem título aqui: seu hub (Configurações) vive no rodapé
     // fixo, fora da área que rola — medido, ele caía fora da dobra até em 1080px.
-    expect(titulos).toEqual(["Atendimento", "CRM", "Automação e IA", "Canais", "Análise"]);
+    expect(titulos).toEqual(["Comunicações", "Pipelines", "Agente de IA", "Canais", "Insights"]);
   });
 
   it("leva às Etapas do funil pelo CRM, e não por Configurações", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
     // ⚠️ O CAMINHO MUDOU, A PROPRIEDADE NÃO. Etapas do funil saiu do menu para
     // dentro do hub do CRM quando Tarefas virou o quinto destino do grupo e o
     // menu passou a rolar. A porta continua sendo CRM — "Ver tudo em CRM" leva
@@ -94,7 +104,12 @@ describe("Sidebar agrupado", () => {
   it("o número de Casos mora no item de Casos, e o da Fila no item de Inbox", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
-    fireEvent.click(screen.getByRole("button", { name: "Automação e IA" }));
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Agente de IA" }));
     const casos = screen.getAllByTestId("marcador-casos");
     const fila = screen.getAllByTestId("marcador-fila");
     expect(casos).toHaveLength(1);
@@ -112,13 +127,23 @@ describe("Sidebar agrupado", () => {
   it("e os dois itens de funil não disputam o mesmo nome", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
     expect(screen.getByRole("link", { name: "Funis" })).toHaveAttribute("href", "/app/kanban");
   });
 
   it("desenterra Audit Log — e Nuvemshop ficou de fora, por escolha", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
-    fireEvent.click(screen.getByRole("button", { name: "Análise" }));
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Insights" }));
     // ⚠️ O CAMINHO MUDOU, A PROPRIEDADE NÃO. O que esta linha sempre prendeu é
     // que Audit Log deixou de existir só como card enterrado em Configurações.
     // Quando Atividades (PR #583) virou o quinto destino do grupo Análise e o
@@ -149,6 +174,11 @@ describe("Sidebar agrupado", () => {
   it("Configurações fica no rodapé, nunca dependendo de scroll", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
     const config = screen.getByRole("link", { name: /Configurações/ });
     expect(config).toHaveAttribute("href", "/app/settings");
     // Fora da <nav> que rola.
@@ -160,15 +190,25 @@ describe("Sidebar agrupado", () => {
     // CANAIS é todo manager+/admin. Um agent não pode ver o título sozinho.
     comoPapel("agent");
     render(<Sidebar collapsed={false} />);
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
     const titulos = screen.getAllByRole("heading").map((el) => el.textContent?.trim());
     expect(titulos).not.toContain("Canais");
-    expect(titulos).toContain("Atendimento");
+    expect(titulos).toContain("Comunicações");
   });
 
   it("oferece o hub dos grupos que têm um", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
-    fireEvent.click(screen.getByRole("button", { name: "Automação e IA" }));
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Agente de IA" }));
     expect(screen.getByRole("link", { name: /Ver tudo em IA/ })).toHaveAttribute("href", "/app/ai");
   });
 
@@ -182,6 +222,11 @@ describe("Sidebar agrupado", () => {
   it("marca a rota atual com aria-current", () => {
     comoPapel("admin");
     render(<Sidebar collapsed={false} />);
+    // O novo menu começa compacto; as portas continuam alcançáveis ao expandir.
+    for (const nome of ["Comunicações", "Pipelines"]) {
+      const grupo = screen.queryByRole("button", { name: nome });
+      if (grupo?.getAttribute("aria-expanded") === "false") fireEvent.click(grupo);
+    }
     expect(screen.getByRole("link", { name: /Conversas/ })).toHaveAttribute("aria-current", "page");
     // "Kanban" saiu da interface; o item da mesma URL agora se chama "Funis".
     expect(screen.getByRole("link", { name: "Funis" })).not.toHaveAttribute("aria-current");

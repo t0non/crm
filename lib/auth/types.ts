@@ -175,6 +175,7 @@ export interface UserOrgMembership {
 }
 
 export interface AuthUser {
+  boas_vindas?: import("@/lib/auth/boas-vindas").BoasVindasSalvas | null;
   support?: import("@/lib/impersonate/support").SupportContext | null;
   id: string;
   email: string;

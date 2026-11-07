@@ -1,6 +1,6 @@
 "use client";
 import { Droppable } from "@hello-pangea/dnd";
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/lib/types/leads";
@@ -40,6 +40,8 @@ interface StageColumnProps {
   /** `manager`+ — mesmo corte de papel da rota que renomeia a etapa. */
   podeRenomear?: boolean;
   onRenomear?: (nome: string) => void;
+  /** O "⋯" da etapa (mover, excluir), desenhado ao lado da contagem. */
+  acoesDaEtapa?: ReactNode;
 }
 
 export function StageColumn({
@@ -58,6 +60,7 @@ export function StageColumn({
   onMoverPara,
   podeRenomear = false,
   onRenomear,
+  acoesDaEtapa,
 }: StageColumnProps) {
   const t = useT();
   // O TOTAL É POR MOEDA (#1531). Antes ele somava todos os `value_cents` e
@@ -157,6 +160,7 @@ export function StageColumn({
       */
       className="flex min-h-full w-[85vw] max-w-80 shrink-0 snap-center flex-col rounded-xl border border-border bg-muted/60 md:w-80"
       data-etapa-do-quadro={stage.id}
+      style={{ "--reference-stage-color": stage.color ?? "#bfc2c6" } as CSSProperties}
     >
       {/* Cabeçalho e total PRESOS no alto do quadro enquanto os cards rolam: com
           uma etapa comprida, é o que diz em que etapa se está olhando. O fundo
@@ -228,6 +232,7 @@ export function StageColumn({
             <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-text tabular-nums">
               {selecionadosAqui > 0 ? `${selecionadosAqui}/${leads.length}` : leads.length}
             </span>
+            {acoesDaEtapa}
           </div>
 
           {temTotal && (
