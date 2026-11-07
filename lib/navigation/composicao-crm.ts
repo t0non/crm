@@ -53,14 +53,16 @@ const AUTOMACOES: Record<string, string> = {
 export function comporNavegacaoCrm(
   origem: Array<{ group: NavGroup; items: NavDestination[] }>,
 ): GrupoDaComposicao[] {
-  const renomear = (d: NavDestination): NavDestination =>
-    ROTULO[d.href] ? { ...d, label: ROTULO[d.href] } : d;
+  const renomear = (d: NavDestination): NavDestination => {
+    const label = ROTULO[d.href];
+    return label ? { ...d, label } : d;
+  };
   const todos = origem.flatMap((g) => g.items);
   const agenda = todos.filter((d) => d.href === "/app/agenda");
   const listas = todos.filter((d) => LISTAS.includes(d.href));
-  const automacoes = Object.keys(AUTOMACOES).flatMap((href) => {
+  const automacoes = Object.entries(AUTOMACOES).flatMap(([href, label]) => {
     const d = todos.find((x) => x.href === href);
-    return d ? [{ ...d, label: AUTOMACOES[href] }] : [];
+    return d ? [{ ...d, label }] : [];
   });
   const destacados = new Set([...agenda, ...listas, ...automacoes].map((d) => d.href));
 

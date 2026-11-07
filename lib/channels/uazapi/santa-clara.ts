@@ -111,7 +111,7 @@ function openingStatus(date: Date) {
   const time = `${fields.hour}:${fields.minute}`;
   const valid = (value?: string) => !!value && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
   const outside = !!days && valid(open) && valid(close) && open! < close! &&
-    (!days.includes(fields.weekday) || time < open! || time >= close!);
+    (!days.includes(fields.weekday ?? "") || time < open! || time >= close!);
   return { day, outside };
 }
 
