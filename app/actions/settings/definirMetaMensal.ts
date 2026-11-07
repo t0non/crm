@@ -51,15 +51,14 @@ export type DefinirMetaMensalResult =
       details?: unknown;
     };
 
-/** O único indicador desta fatia: quantidade de vendas ganhas. */
-const INDICADOR_DA_FATIA = "vendas_ganhas" as const;
-
 const entradaSchema = z.object({
   // 'YYYY-MM': o mês é o que a pessoa escolhe; o DIA é sempre o 1º, e quem
   // garante isso é a action (a constraint da tabela recusa qualquer outro).
   periodo: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mês inválido"),
-  indicador: z.literal(INDICADOR_DA_FATIA).default(INDICADOR_DA_FATIA),
-  alvo: z.number().int().min(1).max(1_000_000),
+  indicador: z.enum(["vendas_ganhas", "valor_vendas_ganhas"]).default("vendas_ganhas"),
+  alvo: z.number().int().min(1).max(2_147_483_647),
+}).refine(({ indicador, alvo }) => indicador !== "vendas_ganhas" || alvo <= 1_000_000, {
+  path: ["alvo"],
 });
 
 export type DefinirMetaMensalInput = z.input<typeof entradaSchema>;
@@ -148,5 +147,6 @@ export async function definirMetaMensal(
 
   revalidatePath("/app/settings/metas");
   revalidatePath("/app/metrics");
+  revalidatePath("/app/inicio");
   return { ok: true };
 }

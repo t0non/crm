@@ -97,7 +97,7 @@ describe("o nome da marca na barra lateral", () => {
   it("com marca da organização, o nome dela SUBSTITUI o da instalação", () => {
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
     renderSidebar({ collapsed: false });
-    expect(screen.getByText("Loja da Ana")).toBeTruthy();
+    expect(screen.getAllByText("Loja da Ana").length).toBeGreaterThan(0);
     // A ausência importa tanto quanto a presença: uma barra que mostrasse os
     // dois nomes passaria na asserção de cima e estaria errada.
     expect(screen.queryByText("Sistema do Revendedor")).toBeNull();

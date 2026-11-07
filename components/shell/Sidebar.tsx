@@ -11,14 +11,21 @@ import { ConnectionHealthDot } from "@/components/connections/ConnectionHealthDo
 import { ContadorDeCasos } from "@/components/shell/ContadorDeCasos";
 import { ContadorDaFila } from "@/components/shell/ContadorDaFila";
 import { VersionFooter } from "@/components/shell/VersionFooter";
+import { GuiaRapido } from "@/components/shell/GuiaRapido";
+import { AlertsBell } from "@/components/shell/AlertsBell";
+import { TenantSwitcher } from "@/components/shell/TenantSwitcher";
+import { UserMenu } from "@/components/shell/UserMenu";
 import { LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
 import { marcaEhADoProduto } from "@/lib/branding";
 import { useMarcaDaInstalacao } from "@/lib/branding/contexto";
 import { GRUPO_NO_RODAPE, sidebarGroups } from "@/lib/navigation/registry";
+import { comporNavegacaoCrm } from "@/lib/navigation/composicao-crm";
 
 const CHAVE_GRUPOS_FECHADOS = "sidebar-grupos-fechados";
-const LINK_NAV = "flex items-center gap-2.5 rounded-lg px-3 py-1 text-sm transition-colors duration-fast focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring";
-const LINK_NAV_ATIVO = "bg-accent-soft font-semibold text-foreground shadow-[inset_2px_0_0_var(--color-accent)]";
+const LINK_NAV =
+  "flex items-center gap-2.5 rounded-lg px-3 py-1 text-sm transition-colors duration-fast focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring";
+const LINK_NAV_ATIVO =
+  "bg-accent-soft font-semibold text-foreground shadow-[inset_2px_0_0_var(--color-accent)]";
 const LINK_NAV_INATIVO = "text-muted-foreground hover:bg-muted hover:text-foreground";
 
 interface SidebarContentProps {
@@ -55,13 +62,13 @@ export function SidebarContent({
   );
   // Configurações sai da área que rola e vai para o rodapé fixo: medido em
   // 1280x768, ele caía fora da dobra mesmo em telas de 1080px.
-  const grupos = todos.filter((g) => g.group.id !== GRUPO_NO_RODAPE);
+  const grupos = comporNavegacaoCrm(todos.filter((g) => g.group.id !== GRUPO_NO_RODAPE));
   const rodape = todos.find((g) => g.group.id === GRUPO_NO_RODAPE)?.group.hub;
 
-  // Atendimento e CRM aparecem primeiro. Preferências salvas continuam valendo.
-  const [gruposFechados, setGruposFechados] = useState<Set<string>>(
-    () => new Set(["ia", "canais", "analise"]),
-  );
+  // Todos os grupos começam abertos: o menu já é curto, e esconder o que
+  // existe atrás de um clique é o que deixava o sistema difícil de entender.
+  // Quem fechar um grupo tem a escolha lembrada.
+  const [gruposFechados, setGruposFechados] = useState<Set<string>>(() => new Set());
   useEffect(() => {
     try {
       const salvo = window.localStorage.getItem(CHAVE_GRUPOS_FECHADOS);
@@ -197,10 +204,7 @@ export function SidebarContent({
           )
         ) : (
           <span
-            className={cn(
-              "min-w-0 truncate font-semibold tracking-tight",
-              collapsed && "sr-only",
-            )}
+            className={cn("min-w-0 truncate font-semibold tracking-tight", collapsed && "sr-only")}
             title={nome}
           >
             {nome}
@@ -286,9 +290,49 @@ export function SidebarContent({
         o PR: cada linha custa 32px (28px de altura + 4px de `space-y-1`), e
         trocar N destinos do menu por um único link de hub devolve (N-1)×32px.
       */}
-      <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2" aria-label={t("Navegação principal")}>
+      <nav
+        className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2"
+        aria-label={t("Navegação principal")}
+      >
         {grupos.map(({ group, items }) => {
+          if (group.direto) {
+            const item = items[0];
+            if (!item) return null;
+            const Icon = item.icon;
+            const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={group.id}
+                href={item.href}
+                onClick={onNavigate}
+                title={collapsed ? t(group.label) : undefined}
+                aria-current={ativo ? "page" : undefined}
+                data-navigation-direct=""
+                className={cn(
+                  LINK_NAV,
+                  ativo ? LINK_NAV_ATIVO : LINK_NAV_INATIVO,
+                  collapsed && "justify-center px-2",
+                )}
+              >
+                <Icon size={18} aria-hidden />
+                {!collapsed && t(group.label)}
+              </Link>
+            );
+          }
           const tituloId = `nav-grupo-${group.id}`;
+          const GroupIcon = items[0]?.icon;
+          const rotulo =
+            (
+              {
+                atendimento: "Comunicações",
+                crm: "Pipelines",
+                ia: "Agente de IA",
+                analise: "Insights",
+              } as Record<string, string>
+            )[group.id] ?? group.label;
+          const grupoAtivo = items.some(
+            (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
+          );
           // Recolhido o sidebar inteiro (rail de 64px), o grupo sempre mostra
           // seus itens — não há onde desenhar cabeçalho nem seta para fechá-lo.
           const aberto = collapsed || !gruposFechados.has(group.id);
@@ -304,9 +348,13 @@ export function SidebarContent({
                     type="button"
                     onClick={() => toggleGrupo(group.id)}
                     aria-expanded={aberto}
+                    data-reference-group-active={grupoAtivo}
                     className="flex w-full items-center justify-between rounded-lg px-3 py-1 text-xs font-semibold tracking-wide text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground"
                   >
-                    {t(group.label)}
+                    <span className="flex items-center gap-2">
+                      {GroupIcon && <GroupIcon size={18} aria-hidden />}
+                      {t(rotulo)}
+                    </span>
                     <CaretDown
                       size={12}
                       weight="bold"
@@ -342,7 +390,12 @@ export function SidebarContent({
                             collapsed && "justify-center px-2",
                           )}
                         >
-                          <Icon size={18} weight={isActive ? "fill" : "regular"} aria-hidden className={cn("shrink-0", isActive && "text-accent")} />
+                          <Icon
+                            size={18}
+                            weight={isActive ? "fill" : "regular"}
+                            aria-hidden
+                            className={cn("shrink-0", isActive && "text-accent")}
+                          />
                           {!collapsed && <span className="truncate">{t(item.label)}</span>}
                           {item.healthDot && (
                             <ConnectionHealthDot
@@ -368,7 +421,11 @@ export function SidebarContent({
                           collapsed && "justify-center px-2",
                         )}
                       >
-                        <ArrowRight size={18} aria-hidden className={cn("shrink-0", pathname === group.hub.href && "text-accent")} />
+                        <ArrowRight
+                          size={18}
+                          aria-hidden
+                          className={cn("shrink-0", pathname === group.hub.href && "text-accent")}
+                        />
                         {!collapsed && <span className="truncate">{t(group.hub.label)}</span>}
                       </Link>
                     </li>
@@ -393,11 +450,28 @@ export function SidebarContent({
               collapsed && "justify-center px-2",
             )}
           >
-            <Gear size={18} aria-hidden className={cn("shrink-0", pathname.startsWith(rodape.href) && "text-accent")} />
+            <Gear
+              size={18}
+              aria-hidden
+              className={cn("shrink-0", pathname.startsWith(rodape.href) && "text-accent")}
+            />
             {!collapsed && <span className="truncate">{t(rodape.label)}</span>}
           </Link>
         )}
         <VersionFooter collapsed={collapsed} onNavigate={onNavigate} />
+        {!collapsed && (
+          // O rodapé em linhas: Ajuda, avisos e quem está logado. Busca (⌘K),
+          // idioma e organização saem da vista no computador; o atalho ⌘K
+          // continua valendo e o tema fica no menu do usuário.
+          <div data-rodape-da-barra="" className="space-y-1">
+            <GuiaRapido linha />
+            <AlertsBell linha />
+            {user.organizations.length > 1 && <TenantSwitcher />}
+            <div className="mt-2 border-t border-border pt-2">
+              <UserMenu linha />
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -457,6 +531,7 @@ function BotaoDeRecolher({
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
   return (
     <aside
+      data-shell-sidebar=""
       className={cn(
         // ⚠️ `sticky`, e NUNCA `fixed`.
         //

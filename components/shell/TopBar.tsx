@@ -9,7 +9,10 @@ import { GuiaRapido } from "./GuiaRapido";
 
 export function TopBar() {
   return (
-    <header className="sticky top-[var(--faixas-de-cima,0px)] z-20 flex h-14 items-center justify-between gap-2 border-b border-border bg-card px-3 md:gap-3 md:px-6">
+    <header
+      data-shell-toolbar=""
+      className="sticky top-[var(--faixas-de-cima,0px)] z-20 flex h-14 items-center justify-between gap-2 border-b border-border bg-card px-3 md:gap-3 md:px-6"
+    >
       <div className="flex min-w-0 items-center gap-2">
         <MobileSidebar />
         <TenantSwitcher />

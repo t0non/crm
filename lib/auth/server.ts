@@ -1,3 +1,4 @@
+import { lerBoasVindas } from "@/lib/auth/boas-vindas";
 import { cache } from "react";
 import { combinarInterfaces } from "@/lib/navigation/interface";
 /**
@@ -218,33 +219,33 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
     { data: rawMemberships, error: membErro },
     leituraDoSuporte,
   ] = await Promise.all([
-      supabase
-        .from("platform_admins")
-        .select("user_id, scope, revoked_at")
-        .eq("user_id", user.id)
-        .is("revoked_at", null)
-        .maybeSingle(),
-      supabase
-        .from("user_organizations")
-        .select(
-          // Dois embeds do MESMO `organizations`, como manda o PostgREST quando a
-          // mesma relação aparece duas vezes: `organizations(...)` continua sendo
-          // o que a membership sempre trouxe (nome, IDIOMA e FUSO da empresa — o
-          // idioma decide a tela inteira e não pode depender de um embed que a
-          // issue #1341 acabou de engordar), e o alias traz só as portas da EMPRESA.
-          // `timezone` veio do main (fuso da organização nas listas, #1290) e convive
-          // com o alias: um embed por relação, sem renomear o que já existia.
-          "organization_id, role, interface_settings, accepted_at, organizations!user_organizations_organization_id_fkey(display_name, locale, timezone, currency, country, status, suspended_kind), interface_da_empresa:organizations!user_organizations_organization_id_fkey(interface_settings)",
-        )
-        .eq("user_id", user.id)
-        .is("revoked_at", null)
-        .order("accepted_at", { ascending: true, nullsFirst: true })
-        .order("organization_id", { ascending: true }),
-      readSupportContext(supabase).then(
-        (contexto) => ({ ok: true as const, contexto }),
-        (erro: unknown) => ({ ok: false as const, erro }),
-      ),
-    ]);
+    supabase
+      .from("platform_admins")
+      .select("user_id, scope, revoked_at")
+      .eq("user_id", user.id)
+      .is("revoked_at", null)
+      .maybeSingle(),
+    supabase
+      .from("user_organizations")
+      .select(
+        // Dois embeds do MESMO `organizations`, como manda o PostgREST quando a
+        // mesma relação aparece duas vezes: `organizations(...)` continua sendo
+        // o que a membership sempre trouxe (nome, IDIOMA e FUSO da empresa — o
+        // idioma decide a tela inteira e não pode depender de um embed que a
+        // issue #1341 acabou de engordar), e o alias traz só as portas da EMPRESA.
+        // `timezone` veio do main (fuso da organização nas listas, #1290) e convive
+        // com o alias: um embed por relação, sem renomear o que já existia.
+        "organization_id, role, interface_settings, accepted_at, organizations!user_organizations_organization_id_fkey(display_name, locale, timezone, currency, country, status, suspended_kind), interface_da_empresa:organizations!user_organizations_organization_id_fkey(interface_settings)",
+      )
+      .eq("user_id", user.id)
+      .is("revoked_at", null)
+      .order("accepted_at", { ascending: true, nullsFirst: true })
+      .order("organization_id", { ascending: true }),
+    readSupportContext(supabase).then(
+      (contexto) => ({ ok: true as const, contexto }),
+      (erro: unknown) => ({ ok: false as const, erro }),
+    ),
+  ]);
 
   /**
    * FALHA ALTO, não baixo.
@@ -323,6 +324,7 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
     email: user.email ?? "",
     full_name: fullName,
     avatar_url: avatarUrl,
+    boas_vindas: lerBoasVindas(user.user_metadata?.boas_vindas),
     is_platform_admin: !!paRow,
     platform_admin_scope: paRow?.scope ?? null,
     locale,

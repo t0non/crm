@@ -8,6 +8,9 @@ import type { NextConfig } from "next";
  *  - Initial bundle /app/inbox < 250KB gzipped
  */
 const nextConfig: NextConfig = {
+  // Sem o botão "N" de desenvolvimento no canto da tela: ele cobria botões
+  // do sistema no celular e confundia quem testa.
+  devIndicators: false,
   // Server Actions recebem senhas e tokens: não imprimir seus argumentos no dev.
   logging: { serverFunctions: false },
   // Self-host: gera .next/standalone pro container Docker (node server.js) — é

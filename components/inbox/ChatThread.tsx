@@ -22,7 +22,11 @@ import { useAlterarMensagem } from "@/hooks/inbox/useAlterarMensagem";
 import { useDebugToggle } from "@/hooks/ai/useDebugToggle";
 import { useActiveOrg, useUser } from "@/hooks/auth/AuthProvider";
 import { ROLE_RANK } from "@/lib/auth/types";
-import { capabilitiesOf, transportaMensagem, type ChannelProvider } from "@/lib/channels/capabilities";
+import {
+  capabilitiesOf,
+  transportaMensagem,
+  type ChannelProvider,
+} from "@/lib/channels/capabilities";
 import { montarCartoesDaPassagem, type CartaoDaPassagem } from "@/lib/escalacao/cartao-da-passagem";
 import type { Message, Note } from "@/lib/types/messaging";
 
@@ -79,7 +83,11 @@ export function mergeThreadItems(
   return items;
 }
 
-function dayLabel(d: Date, t: (texto: string) => string = (texto) => texto, locale: Locale): string {
+function dayLabel(
+  d: Date,
+  t: (texto: string) => string = (texto) => texto,
+  locale: Locale,
+): string {
   if (isToday(d)) return t("Hoje");
   if (isYesterday(d)) return t("Ontem");
   return format(d, "dd/MM/yyyy", { locale: locale });
@@ -107,14 +115,12 @@ export function ChatThread({
   const canManage = activeOrg != null && ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
   // Reenviar é envio: a rota exige `agent`, e quem só lê não ganha um botão que ela recusa.
   const podeEnviar = activeOrg != null && ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent;
-  const canalAlteraEnviada = transportaMensagem(provider)
-    && capabilitiesOf(provider as ChannelProvider).alteraMensagemEnviada;
+  const canalAlteraEnviada =
+    transportaMensagem(provider) &&
+    capabilitiesOf(provider as ChannelProvider).alteraMensagemEnviada;
   const { enabled: debugCitations } = useDebugToggle(activeOrg?.role ?? null);
 
-  const messages: Message[] = useMemo(
-    () => q.data?.pages.flatMap((p) => p.data) ?? [],
-    [q.data],
-  );
+  const messages: Message[] = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
 
   /**
    * BUSCA NO QUE JÁ ESTÁ NA TELA (#1793). Não vai ao servidor: filtra as
@@ -174,8 +180,9 @@ export function ChatThread({
     itemCount: items.length,
     lastItemKey: lastItem ? `${lastItem.kind}:${lastItem.data.id}` : "",
     lastMessageId: latest?.id ?? "",
-    lastMessageIsOwn: latest?.direction === "outbound"
-      && (latest.sent_by_user_id === currentUser.id || latest.metadata?._optimistic === true),
+    lastMessageIsOwn:
+      latest?.direction === "outbound" &&
+      (latest.sent_by_user_id === currentUser.id || latest.metadata?._optimistic === true),
     pages: q.data?.pages.length ?? 0,
     searching: !!termo,
   });
@@ -229,7 +236,7 @@ export function ChatThread({
 
   if (q.isLoading) {
     return (
-      <div {...sinalDoCanal} className="space-y-3 p-4">
+      <div data-chat-thread="" {...sinalDoCanal} className="space-y-3 p-4">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-12 w-2/3" />
         ))}
@@ -279,108 +286,140 @@ export function ChatThread({
           {t("Resultados nas mensagens carregadas")}: {resultados.size}
         </div>
       )}
-      <div ref={scrollerRef} role="region" aria-label={t("Mensagens da conversa")} tabIndex={0}
-        onScroll={scroll.onScroll} onWheel={scroll.onWheel} onTouchMove={scroll.onTouchMove}
-        onPointerDown={scroll.onPointerDown} onKeyDown={scroll.onKeyDown}
-        className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain py-2">
+      <div
+        ref={scrollerRef}
+        role="region"
+        aria-label={t("Mensagens da conversa")}
+        tabIndex={0}
+        onScroll={scroll.onScroll}
+        onWheel={scroll.onWheel}
+        onTouchMove={scroll.onTouchMove}
+        onPointerDown={scroll.onPointerDown}
+        onKeyDown={scroll.onKeyDown}
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain py-2"
+      >
         <div ref={contentRef}>
-        {q.hasNextPage && (
-          <div className="flex justify-center py-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => { scroll.beforeLoadOlder(); q.fetchNextPage(); }}
-              disabled={q.isFetchingNextPage}
-            >
-              {q.isFetchingNextPage ? t("Carregando…") : t("Carregar mais antigas")}
-            </Button>
-          </div>
-        )}
-
-        {groups.map((g) => (
-          <div key={g.key} className="space-y-1">
-            <div className="sticky top-0 z-10 flex justify-center py-1">
-              <span className="rounded-full bg-background/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground backdrop-blur">
-                {dayLabel(g.date, t, localeDaData)}
-              </span>
+          {q.hasNextPage && (
+            <div className="flex justify-center py-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  scroll.beforeLoadOlder();
+                  q.fetchNextPage();
+                }}
+                disabled={q.isFetchingNextPage}
+              >
+                {q.isFetchingNextPage ? t("Carregando…") : t("Carregar mais antigas")}
+              </Button>
             </div>
-            {g.items.map((item) =>
-              item.kind === "passagem" ? (
-                <PassagemCard
-                  key={`passagem-${item.data.id}`}
-                  cartao={item.data}
-                  contatoId={contatoId ?? null}
-                  assumindo={claim.isPending}
-                  // O MESMO gesto do cabeçalho — uma rota, um efeito. Uma
-                  // segunda maneira de assumir seria uma segunda chance de os
-                  // dois caminhos divergirem sobre o que "assumir" faz.
-                  onAssumir={() =>
-                    conversationId &&
-                    claim.mutate({
-                      conversation_id: conversationId,
-                      expected_assignee: dono?.userId ?? null,
-                    })
-                  }
-                />
-              ) : item.kind === "note" ? (
-                <NoteCard
-                  key={`note-${item.data.id}`}
-                  note={item.data}
-                  // Só o autor ou manager+ vê o excluir — o backend barra o resto (403),
-                  // então não mostramos um botão que daria erro.
-                  onDelete={
-                    item.data.created_by_user_id === currentUser.id || canManage
-                      ? () => deleteNote.mutate(item.data.id)
-                      : undefined
-                  }
-                />
-              ) : (
-                <MessageBubble
-                  key={`msg-${item.data.id}`}
-                  message={item.data}
-                  searchMatch={resultados.has(item.data.id)}
-                  debugCitations={debugCitations}
-                  onResponder={onResponder}
-                  onEncaminhar={onEncaminhar}
-                  // A citada sai da MESMA lista já carregada: buscar no servidor
-                  // por cada citação faria uma consulta por bolha. Quando a
-                  // citada é antiga demais e ficou fora da página, o fio some —
-                  // que é melhor que segurar a conversa esperando.
-                  citada={porId.get(item.data.reply_to_message_id ?? "") ?? null}
-                  reacoes={reacoesPorAlvo.get(item.data.id)}
-                  // Sem isto o balão diz "Você" em toda mensagem digitada no
-                  // CRM — inclusive nas do colega, porque `sent_via='user'` só
-                  // registra que um humano digitou, nunca qual.
-                  viewerUserId={currentUser.id}
-                  onEditar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
-                    ? (text) => editar.mutateAsync({ id: item.data.id, text }).then(() => undefined)
-                    : undefined}
-                  onApagar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
-                    ? () => apagar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                  onOcultar={canManage && item.data.direction === "inbound"
-                    ? () => ocultar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                  onRestaurar={canManage && item.data.direction === "inbound"
-                    ? () => restaurar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                  onReenviar={podeEnviar && item.data.direction === "outbound"
-                    ? (confirmado) => reenviar.mutateAsync({ id: item.data.id, confirmado }).then(() => undefined)
-                    : undefined}
-                  podeReenviarDeOutros={canManage}
-                />
-              ),
-            )}
-          </div>
-        ))}
+          )}
 
-        <div ref={bottomRef} />
+          {groups.map((g) => (
+            <div key={g.key} className="space-y-1">
+              <div className="sticky top-0 z-10 flex justify-center py-1">
+                <span className="rounded-full bg-background/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground backdrop-blur">
+                  {dayLabel(g.date, t, localeDaData)}
+                </span>
+              </div>
+              {g.items.map((item) =>
+                item.kind === "passagem" ? (
+                  <PassagemCard
+                    key={`passagem-${item.data.id}`}
+                    cartao={item.data}
+                    contatoId={contatoId ?? null}
+                    assumindo={claim.isPending}
+                    // O MESMO gesto do cabeçalho — uma rota, um efeito. Uma
+                    // segunda maneira de assumir seria uma segunda chance de os
+                    // dois caminhos divergirem sobre o que "assumir" faz.
+                    onAssumir={() =>
+                      conversationId &&
+                      claim.mutate({
+                        conversation_id: conversationId,
+                        expected_assignee: dono?.userId ?? null,
+                      })
+                    }
+                  />
+                ) : item.kind === "note" ? (
+                  <NoteCard
+                    key={`note-${item.data.id}`}
+                    note={item.data}
+                    // Só o autor ou manager+ vê o excluir — o backend barra o resto (403),
+                    // então não mostramos um botão que daria erro.
+                    onDelete={
+                      item.data.created_by_user_id === currentUser.id || canManage
+                        ? () => deleteNote.mutate(item.data.id)
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <MessageBubble
+                    key={`msg-${item.data.id}`}
+                    message={item.data}
+                    searchMatch={resultados.has(item.data.id)}
+                    debugCitations={debugCitations}
+                    onResponder={onResponder}
+                    onEncaminhar={onEncaminhar}
+                    // A citada sai da MESMA lista já carregada: buscar no servidor
+                    // por cada citação faria uma consulta por bolha. Quando a
+                    // citada é antiga demais e ficou fora da página, o fio some —
+                    // que é melhor que segurar a conversa esperando.
+                    citada={porId.get(item.data.reply_to_message_id ?? "") ?? null}
+                    reacoes={reacoesPorAlvo.get(item.data.id)}
+                    // Sem isto o balão diz "Você" em toda mensagem digitada no
+                    // CRM — inclusive nas do colega, porque `sent_via='user'` só
+                    // registra que um humano digitou, nunca qual.
+                    viewerUserId={currentUser.id}
+                    onEditar={
+                      canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
+                        ? (text) =>
+                            editar.mutateAsync({ id: item.data.id, text }).then(() => undefined)
+                        : undefined
+                    }
+                    onApagar={
+                      canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
+                        ? () => apagar.mutateAsync(item.data.id).then(() => undefined)
+                        : undefined
+                    }
+                    onOcultar={
+                      canManage && item.data.direction === "inbound"
+                        ? () => ocultar.mutateAsync(item.data.id).then(() => undefined)
+                        : undefined
+                    }
+                    onRestaurar={
+                      canManage && item.data.direction === "inbound"
+                        ? () => restaurar.mutateAsync(item.data.id).then(() => undefined)
+                        : undefined
+                    }
+                    onReenviar={
+                      podeEnviar && item.data.direction === "outbound"
+                        ? (confirmado) =>
+                            reenviar
+                              .mutateAsync({ id: item.data.id, confirmado })
+                              .then(() => undefined)
+                        : undefined
+                    }
+                    podeReenviarDeOutros={canManage}
+                  />
+                ),
+              )}
+            </div>
+          ))}
+
+          <div ref={bottomRef} />
         </div>
       </div>
       {scroll.hasNewMessages && (
-        <div className="absolute inset-x-0 bottom-3 z-20 flex justify-center px-3" role="status" aria-live="polite">
-          <Button size="sm" className="h-auto max-w-full whitespace-normal rounded-full shadow-lg"
-            onClick={() => scroll.scrollToEnd()}>
+        <div
+          className="absolute inset-x-0 bottom-3 z-20 flex justify-center px-3"
+          role="status"
+          aria-live="polite"
+        >
+          <Button
+            size="sm"
+            className="h-auto max-w-full rounded-full whitespace-normal shadow-lg"
+            onClick={() => scroll.scrollToEnd()}
+          >
             {t("Novas mensagens · Ir para o fim")}
           </Button>
         </div>

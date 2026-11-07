@@ -1,0 +1,64 @@
+.form {
+  display: grid;
+  gap: 24px;
+  color: #100536;
+  font-family: inherit;
+}
+.form > div {
+  position: relative;
+  margin: 0;
+}
+.form input {
+  height: 60px;
+  border: 2px solid #16083e;
+  border-radius: 8px;
+  background: #fff;
+  color: #100536;
+  padding: 0 100px 0 40px;
+  font: inherit;
+  font-size: 16px;
+  box-shadow: none;
+}
+.form input::placeholder {
+  color: #8b819e;
+  opacity: 1;
+}
+.form input:focus-visible {
+  outline: 3px solid #cfc4ff;
+  outline-offset: 3px;
+  box-shadow: none;
+}
+.form button[type="submit"] {
+  height: 50px;
+  border-radius: 30px;
+  background: #100536;
+  color: white;
+  font: inherit;
+  font-weight: 500;
+  border: 0;
+}
+.form button[type="submit"]:hover {
+  background: #29155c;
+}
+.form button[type="submit"]:disabled {
+  opacity: 0.65;
+}
+.form button[type="button"] {
+  width: auto;
+  padding: 0 16px;
+  color: #100536;
+  font: inherit;
+  background: transparent;
+}
+.emailIcon,
+.passwordIcon {
+  position: absolute;
+  left: 16px;
+  top: 21px;
+  color: #888;
+  pointer-events: none;
+  z-index: 1;
+}
+.form [role="alert"] {
+  font-size: 14px;
+}

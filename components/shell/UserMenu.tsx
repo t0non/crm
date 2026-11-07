@@ -1,6 +1,6 @@
 "use client";
 import { useTransition } from "react";
-import { useUser, useAuth } from "@/hooks/auth/AuthProvider";
+import { useUser, useAuth, useActiveOrg } from "@/hooks/auth/AuthProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,32 +24,61 @@ function initials(name: string | null, email: string): string {
   return email.slice(0, 2).toUpperCase();
 }
 
-export function UserMenu() {
+export function UserMenu({ linha = false }: { linha?: boolean } = {}) {
   const t = useT();
   const user = useUser();
   const { signOut } = useAuth();
   const [isPending, startTransition] = useTransition();
+  const org = useActiveOrg();
 
   return (
-    <div className="flex items-center gap-2">
-      <SeletorDeIdioma />
-      <ThemeToggle />
+    <div className={linha ? "w-full" : "flex items-center gap-2"}>
+      {!linha && <SeletorDeIdioma />}
+      {!linha && <ThemeToggle />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full" aria-label={`${t("Menu do usuário")}: ${initials(user.full_name, user.email)}`}>
-            <Avatar className="h-8 w-8">
-              {user.avatar_url && <AvatarImage src={user.avatar_url} alt="" />}
-              <AvatarFallback>{initials(user.full_name, user.email)}</AvatarFallback>
-            </Avatar>
-          </Button>
+          {linha ? (
+            <button
+              type="button"
+              data-linha-do-rodape=""
+              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-muted"
+              aria-label={`${t("Menu do usuário")}: ${user.full_name ?? user.email}`}
+            >
+              <Avatar className="size-9">
+                {user.avatar_url && <AvatarImage src={user.avatar_url} alt="" />}
+                <AvatarFallback>{initials(user.full_name, user.email)}</AvatarFallback>
+              </Avatar>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">{user.full_name ?? user.email}</span>
+                <span className="block truncate text-xs text-muted-foreground">{org?.name}</span>
+              </span>
+            </button>
+          ) : (
+            <Button variant="ghost" size="icon" className="rounded-full" aria-label={`${t("Menu do usuário")}: ${initials(user.full_name, user.email)}`}>
+              <Avatar className="h-8 w-8">
+                {user.avatar_url && <AvatarImage src={user.avatar_url} alt="" />}
+                <AvatarFallback>{initials(user.full_name, user.email)}</AvatarFallback>
+              </Avatar>
+            </Button>
+          )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[220px]">
+        <DropdownMenuContent align={linha ? "start" : "end"} side={linha ? "top" : undefined} className="min-w-[220px]">
           <DropdownMenuLabel>
             <div className="flex flex-col">
               <span className="text-sm font-medium">{user.full_name ?? user.email}</span>
               <span className="truncate text-xs text-muted-foreground">{user.email}</span>
             </div>
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/app/settings/profile">{t("Meu perfil")}</Link>
+          </DropdownMenuItem>
+          {linha && (
+            <div className="flex items-center justify-between px-2 py-1.5 text-sm">
+              <span>{t("Tema")}</span>
+              <ThemeToggle />
+            </div>
+          )}
           <DropdownMenuSeparator />
           {/*
             A PORTA DO MODO ADMINISTRADOR.

@@ -4,7 +4,11 @@ import { CartaoDaCarteira } from "@/components/contacts/CartaoDaCarteira";
 import { RoteirosDoContato } from "@/components/contacts/RoteirosDoContato";
 import { AcervoSearch } from "./AcervoSearch";
 import { LeadEnrichment } from "./LeadEnrichment";
-import { AnuncioDoContato, type AnuncioDeOrigem, type AnuncioMaisRecente } from "./AnuncioDoContato";
+import {
+  AnuncioDoContato,
+  type AnuncioDeOrigem,
+  type AnuncioMaisRecente,
+} from "./AnuncioDoContato";
 import { UltimasComprasDoContato } from "@/components/contacts/UltimasCompras";
 import type { ProspectEnrichment } from "@/lib/prospecting/schema";
 import type { PersonalizacaoProspeccao } from "@/lib/prospecting/personalizar";
@@ -15,15 +19,22 @@ import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 import type { Locale } from "date-fns";
 import Link from "next/link";
 import { useT } from "@/hooks/i18n/useT";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Tag, Receipt, Users, ArrowRight, CalendarBlank, CaretDoubleLeft, CaretDoubleRight, IdentificationCard, Phone } from "@/lib/ui/icons";
+import {
+  CaretDown,
+  Receipt,
+  Users,
+  ArrowRight,
+  CalendarBlank,
+  CaretDoubleLeft,
+  CaretDoubleRight,
+} from "@/lib/ui/icons";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
@@ -35,13 +46,19 @@ import { TarefasDaDemanda } from "./TarefasDaDemanda";
 import { FollowupDoContato } from "./FollowupDoContato";
 import { useDefaultPipeline } from "@/hooks/pipelines/useDefaultPipeline";
 import { LoseLeadDialog } from "@/components/kanban/LoseLeadDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NewLeadDialog } from "@/components/kanban/NewLeadDialog";
 import { MoveToOtherPipelineDialog } from "@/components/kanban/MoveToOtherPipelineDialog";
 import { CustomFieldsEditor, type CustomFieldDef } from "@/components/contacts/CustomFieldsEditor";
 import { useEditLead } from "@/hooks/kanban/useUpdateLead";
 import { useBulkAction } from "@/hooks/kanban/useBulkAction";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { avatarPadrao } from "@/lib/ui/avatar-padrao";
 import { PROXIMO_PASSO_DA_MENSAGEM_NOVA } from "@/lib/atendimento/proximo-passo-padrao";
 import { rotuloParaAEquipe } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
@@ -142,7 +159,13 @@ interface DesfechoDraft {
   salvando: boolean;
 }
 
-function EncerrarDemanda({ draft, onAbrir, onAlterar, onFechar, onPronto }: {
+function EncerrarDemanda({
+  draft,
+  onAbrir,
+  onAlterar,
+  onFechar,
+  onPronto,
+}: {
   draft: DesfechoDraft | null;
   onAbrir: () => void;
   onAlterar: (patch: Partial<Pick<DesfechoDraft, "desfecho" | "salvando">>) => void;
@@ -150,31 +173,77 @@ function EncerrarDemanda({ draft, onAbrir, onAlterar, onFechar, onPronto }: {
   onPronto: () => void;
 }) {
   const t = useT();
-  if (!draft) return <Button size="sm" variant="ghost" onClick={onAbrir}>{t("Encerrar demanda")}</Button>;
-  return <form className="mt-2 space-y-2" onSubmit={async (event) => {
-    event.preventDefault(); onAlterar({ salvando: true });
-    try {
-      await apiClient.patch(`/api/v1/demandas/${draft.demandaId}`, { action: "encerrar", desfecho: draft.desfecho, expected_revision: draft.revision });
-      toast.success(t("Desfecho registrado.")); onFechar(); onPronto();
-    } catch { toast.error(t("Não foi possível encerrar. Cancele esta edição e abra novamente para revisar o desfecho.")); onPronto(); }
-    finally { onAlterar({ salvando: false }); }
-  }}>
-    <label className="block">{t("Desfecho")}
-      <select aria-label={t("Desfecho da demanda")} className="mt-1 w-full rounded-md border bg-background p-2" value={draft.desfecho} onChange={(e) => onAlterar({ desfecho: e.target.value })}>
-        <option value="resolvida">{t("Resolvida")}</option><option value="convertida">{t("Convertida")}</option>
-        <option value="nao_procede">{t("Não procede")}</option><option value="encerrada_pelo_cliente">{t("Encerrada pelo cliente")}</option>
-        <option value="perdida">{t("Perdida")}</option><option value="expirada_sem_resposta">{t("Expirada sem resposta")}</option>
-      </select>
-    </label>
-    <p>{t("Registra o resultado desta demanda. As conversas dos outros canais permanecem disponíveis.")}</p>
-    <Button size="sm" disabled={draft.salvando} type="submit">{t("Confirmar desfecho")}</Button>
-    <Button size="sm" variant="ghost" type="button" disabled={draft.salvando} onClick={onFechar}>{t("Cancelar")}</Button>
-  </form>;
+  if (!draft)
+    return (
+      <Button size="sm" variant="ghost" onClick={onAbrir}>
+        {t("Encerrar demanda")}
+      </Button>
+    );
+  return (
+    <form
+      className="mt-2 space-y-2"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        onAlterar({ salvando: true });
+        try {
+          await apiClient.patch(`/api/v1/demandas/${draft.demandaId}`, {
+            action: "encerrar",
+            desfecho: draft.desfecho,
+            expected_revision: draft.revision,
+          });
+          toast.success(t("Desfecho registrado."));
+          onFechar();
+          onPronto();
+        } catch {
+          toast.error(
+            t(
+              "Não foi possível encerrar. Cancele esta edição e abra novamente para revisar o desfecho.",
+            ),
+          );
+          onPronto();
+        } finally {
+          onAlterar({ salvando: false });
+        }
+      }}
+    >
+      <label className="block">
+        {t("Desfecho")}
+        <select
+          aria-label={t("Desfecho da demanda")}
+          className="mt-1 w-full rounded-md border bg-background p-2"
+          value={draft.desfecho}
+          onChange={(e) => onAlterar({ desfecho: e.target.value })}
+        >
+          <option value="resolvida">{t("Resolvida")}</option>
+          <option value="convertida">{t("Convertida")}</option>
+          <option value="nao_procede">{t("Não procede")}</option>
+          <option value="encerrada_pelo_cliente">{t("Encerrada pelo cliente")}</option>
+          <option value="perdida">{t("Perdida")}</option>
+          <option value="expirada_sem_resposta">{t("Expirada sem resposta")}</option>
+        </select>
+      </label>
+      <p>
+        {t(
+          "Registra o resultado desta demanda. As conversas dos outros canais permanecem disponíveis.",
+        )}
+      </p>
+      <Button size="sm" disabled={draft.salvando} type="submit">
+        {t("Confirmar desfecho")}
+      </Button>
+      <Button size="sm" variant="ghost" type="button" disabled={draft.salvando} onClick={onFechar}>
+        {t("Cancelar")}
+      </Button>
+    </form>
+  );
 }
 
 const DESFECHO_LEGIVEL: Record<string, string> = {
-  resolvida: "Resolvida", convertida: "Convertida", nao_procede: "Não procede",
-  encerrada_pelo_cliente: "Encerrada pelo cliente", perdida: "Perdida", expirada_sem_resposta: "Expirada sem resposta",
+  resolvida: "Resolvida",
+  convertida: "Convertida",
+  nao_procede: "Não procede",
+  encerrada_pelo_cliente: "Encerrada pelo cliente",
+  perdida: "Perdida",
+  expirada_sem_resposta: "Expirada sem resposta",
 };
 
 /** Vocabulário de quem atende, não o do banco. */
@@ -252,7 +321,7 @@ function MarcarProximoPasso({ demandaId, onPronto }: { demandaId: string; onPron
         placeholder={t("O que acontece a seguir?")}
         aria-label={t("Próximo passo desta demanda")}
         data-testid="campo-proximo-passo"
-        className="w-full rounded-md border border-input bg-background px-2 py-1 text-base focus:outline-hidden focus:ring-1 focus:ring-ring md:text-xs"
+        className="w-full rounded-md border border-input bg-background px-2 py-1 text-base focus:ring-1 focus:ring-ring focus:outline-hidden md:text-xs"
       />
       <div className="flex gap-1.5">
         <Button
@@ -278,12 +347,10 @@ function MarcarProximoPasso({ demandaId, onPronto }: { demandaId: string; onPron
 }
 
 function formatMoney(cents: number | null, currency: string | null): string {
-  if (cents == null) return "—";
+  if (cents == null) return "sem valor";
   const cur = currency ?? "BRL";
   try {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur }).format(
-      cents / 100,
-    );
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur }).format(cents / 100);
   } catch {
     return `${(cents / 100).toFixed(2)} ${cur}`;
   }
@@ -427,13 +494,14 @@ function InboxLeadEditor({
       )}
       {leads.length === 1 && (
         <div data-testid="inbox-lead-unico" className="text-xs text-muted-foreground">
-          <p>{ativo.title} · {status(ativo)}</p>
+          <p>
+            {ativo.title} · {status(ativo)}
+          </p>
           <p className={CLASSES_DE_ONDE_ESTA} title={ondeEstaOLead(ativo)}>
             {ondeEstaOLead(ativo)}
           </p>
         </div>
       )}
-      <EtapaDoNegocio key={`etapa-${ativo.id}`} lead={ativo} onMovido={onSalvo} />
       {/*
         ABRIR O NEGÓCIO NO QUADRO DO FUNIL (issue #3004).
 
@@ -483,12 +551,32 @@ function InboxLeadEditor({
  * não move direto: ela pede o motivo, então abre o mesmo `LoseLeadDialog` do
  * quadro (issue #2871).
  */
-function EtapaDoNegocio({ lead, onMovido }: { lead: LeadRow; onMovido: () => void }) {
+/** Cor suave de cada etapa, pela posição; ganho é verde, perdido é cinza. */
+const CORES_DAS_ETAPAS = [
+  "bg-sky-100 text-sky-900",
+  "bg-amber-100 text-amber-900",
+  "bg-orange-100 text-orange-900",
+  "bg-rose-100 text-rose-900",
+  "bg-violet-100 text-violet-900",
+  "bg-teal-100 text-teal-900",
+];
+function corDaEtapa(e: { is_won: boolean; is_lost: boolean }, i: number): string {
+  if (e.is_won) return "bg-emerald-100 text-emerald-900";
+  if (e.is_lost) return "bg-neutral-200 text-neutral-700";
+  return CORES_DAS_ETAPAS[i % CORES_DAS_ETAPAS.length]!;
+}
+
+/**
+ * A ETAPA NO TOPO DO PAINEL, clicável: o nome da etapa abre a lista das
+ * etapas do funil, cada uma com a sua cor, e escolher move o negócio.
+ * A mesma escrita do quadro (`useBulkAction` move) e o mesmo pedido de
+ * motivo ao marcar como perdido.
+ */
+function EtapaNoTopo({ lead, onMovido }: { lead: LeadRow; onMovido: () => void }) {
   const t = useT();
   const mover = useBulkAction(lead.pipeline_id);
   const [perdendo, setPerdendo] = useState(false);
   const etapas = lead.etapas_do_funil ?? [];
-  if (!lead.stage_id || etapas.length === 0) return null;
 
   async function escolher(stageId: string) {
     if (stageId === lead.stage_id) return;
@@ -506,22 +594,37 @@ function EtapaDoNegocio({ lead, onMovido }: { lead: LeadRow; onMovido: () => voi
   }
 
   return (
-    <div className="space-y-1" data-testid="inbox-etapa-do-negocio">
-      <label className="block text-xs font-medium text-text" htmlFor={`etapa-${lead.id}`}>
-        {t("Etapa do funil")}
-      </label>
-      <Select value={lead.stage_id} onValueChange={(v) => void escolher(v)} disabled={mover.isPending}>
-        <SelectTrigger id={`etapa-${lead.id}`} className="h-8 w-full text-xs" data-testid="inbox-etapa-select">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {etapas.map((e) => (
-            <SelectItem key={e.id} value={e.id} className="text-xs">
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={mover.isPending}
+            className="inline-flex max-w-full items-center gap-1.5 rounded-md text-left hover:underline focus-visible:outline-2 focus-visible:outline-white"
+            aria-label={`${t("Mudar etapa do negócio")}: ${lead.etapa_nome ?? ""}`}
+            data-testid="inbox-etapa-no-topo"
+          >
+            <span className="truncate">{lead.etapa_nome ?? t("Etapa")}</span>
+            <CaretDown size={12} weight="bold" aria-hidden className="shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-64 p-1">
+          {etapas.map((e, i) => (
+            <DropdownMenuItem
+              key={e.id}
+              onSelect={() => void escolher(e.id)}
+              className={cn(
+                "my-0.5 rounded-sm px-3 py-2 text-sm",
+                corDaEtapa(e, i),
+                e.id === lead.stage_id && "font-semibold ring-2 ring-inset ring-black/20",
+              )}
+            >
+              {e.id === lead.stage_id ? "✓ " : ""}
               {e.name}
-            </SelectItem>
+            </DropdownMenuItem>
           ))}
-        </SelectContent>
-      </Select>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <LoseLeadDialog
         open={perdendo}
         onOpenChange={setPerdendo}
@@ -530,9 +633,10 @@ function EtapaDoNegocio({ lead, onMovido }: { lead: LeadRow; onMovido: () => voi
         onPerdido={onMovido}
         motivos={lead.motivos_de_perda}
       />
-    </div>
+    </>
   );
 }
+
 
 /**
  * "Levar para outro funil" no lead ATIVO da conversa — o que faltava ao lado de
@@ -619,7 +723,9 @@ function CamposDoFunil({
   const [camposCarregados, setCamposCarregados] = useState(valores);
 
   if (fieldDefs.length === 0) {
-    return <p className="text-xs text-muted-foreground">{t("Este funil não tem campos extras.")}</p>;
+    return (
+      <p className="text-xs text-muted-foreground">{t("Este funil não tem campos extras.")}</p>
+    );
   }
 
   async function salvar() {
@@ -713,42 +819,56 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
   // Criar tarefa é `agent`+ (a rota cobra `requireRole("agent")`): a MESMA régua
   // da tela de Tarefas (`app/app/tasks/page.tsx`). `readonly` sozinho deixava o
   // `viewer` ver "Nova tarefa", preencher e levar 403 ao salvar (#2842).
-  const podeCriarTarefa = (user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "agent");
+  const podeCriarTarefa =
+    (user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "agent");
   // A MESMA régua do Kanban para "Levar para outro funil": `pipeline.move_card`
   // (agent+) é a chave que `KanbanCardActions` consulta e o piso que
   // `POST /api/v1/leads/[id]/clone` cobra no servidor. Escrita como `roleAtLeast`
   // pelo mesmo motivo de `podeCriarTarefa` acima — os dublês de `useAuth` dos
   // testes deste painel não expõem `usePermission`, e a semântica é a mesma.
-  const podeLevarParaOutroFunil = (user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "agent");
+  const podeLevarParaOutroFunil =
+    (user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "agent");
   // O MESMO piso da ficha do contato para o bloco da carteira (#2591): `agent`+
   // é quem LÊ a carteira (o GET da rota cobra `requireRole("agent")`), e o
   // `viewer` receberia 403. Escrever é outra régua (`manager`+) e mora dentro do
   // `CartaoDaCarteira`, que só desenha o seletor para `manager`+. Aqui só se
   // decide se o bloco existe — nunca se oferece um botão que o servidor recusaria.
-  const podeVerCarteira = (user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "agent");
+  const podeVerCarteira =
+    (user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "agent");
   const localeDaData = useLocaleDeData();
   const t = useT();
   const contact = conversation?.contacts ?? null;
   const contactId = contact?.id ?? null;
+  const [aba, setAba] = useState<"principal" | "estatisticas" | "venda">("principal");
   const [desfechoDraft, setDesfechoDraft] = useState<DesfechoDraft | null>(null);
   // A saída do filtro produz null enquanto o detalhe carrega. O rascunho não
   // some nessa lacuna; outra conversa/contato real o descarta, sem expô-lo.
   useEffect(() => {
-    if (conversation && desfechoDraft && (conversation.id !== desfechoDraft.conversationId || contactId !== desfechoDraft.contactId)) setDesfechoDraft(null);
+    if (
+      conversation &&
+      desfechoDraft &&
+      (conversation.id !== desfechoDraft.conversationId || contactId !== desfechoDraft.contactId)
+    )
+      setDesfechoDraft(null);
   }, [conversation, contactId, desfechoDraft]);
 
-
-  const [enrichment, setEnrichment] = useState<(ProspectEnrichment & { collected_at: string }) | null>(null);
+  const [enrichment, setEnrichment] = useState<
+    (ProspectEnrichment & { collected_at: string }) | null
+  >(null);
   const [enrichmentError, setEnrichmentError] = useState(false);
-  const [personalizacao, setPersonalizacao] =
-    useState<PersonalizacaoProspeccao | null>(null);
+  const [personalizacao, setPersonalizacao] = useState<PersonalizacaoProspeccao | null>(null);
   const [leads, setLeads] = useState<LeadRow[] | null>(null);
   const [orders, setOrders] = useState<OrderRow[] | null>(null);
   const [activities, setActivities] = useState<ActivityRow[] | null>(null);
   const [demandas, setDemandas] = useState<DemandaRow[] | null>(null);
   const [fatos, setFatos] = useState<Array<{ id: string; headline: string; body: string }>>([]);
-  const [historico, setHistorico] = useState<Array<{ id: string; desfecho: string; fechada_em: string }>>([]);
-  const [anuncios, setAnuncios] = useState<{ origem: AnuncioDeOrigem | null; recente: AnuncioMaisRecente | null }>({ origem: null, recente: null });
+  const [historico, setHistorico] = useState<
+    Array<{ id: string; desfecho: string; fechada_em: string }>
+  >([]);
+  const [anuncios, setAnuncios] = useState<{
+    origem: AnuncioDeOrigem | null;
+    recente: AnuncioMaisRecente | null;
+  }>({ origem: null, recente: null });
   const [summaryContactId, setSummaryContactId] = useState<string | null>(null);
   /**
    * O TERCEIRO ESTADO. Antes existiam dois — carregando e "tem N itens" — e a
@@ -785,7 +905,8 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
       setOrders(null);
       setActivities(null);
       setDemandas(null);
-      setFatos([]); setHistorico([]);
+      setFatos([]);
+      setHistorico([]);
       setAnuncios({ origem: null, recente: null });
       setLeadAtivoId(null);
       idsDeNegocioVistos.current.clear();
@@ -841,8 +962,12 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
         // mostraria esqueleto para sempre num contato sem demanda aberta —
         // que é o caso saudável.
         setDemandas(r.data.demandas ?? []);
-        setFatos(r.data.fatos ?? []); setHistorico(r.data.historico ?? []);
-        setAnuncios({ origem: r.data.anuncio_de_origem ?? null, recente: r.data.anuncio_mais_recente ?? null });
+        setFatos(r.data.fatos ?? []);
+        setHistorico(r.data.historico ?? []);
+        setAnuncios({
+          origem: r.data.anuncio_de_origem ?? null,
+          recente: r.data.anuncio_mais_recente ?? null,
+        });
       } catch {
         if (cancelled) return;
         // Falha NÃO vira lista vazia. Os dados ficam `null` e o painel diz que
@@ -852,7 +977,8 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
         setOrders(null);
         setActivities(null);
         setDemandas(null);
-        setFatos([]); setHistorico([]);
+        setFatos([]);
+        setHistorico([]);
         setAnuncios({ origem: null, recente: null });
       }
     }
@@ -873,7 +999,15 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
     // Depender do DADO que muda é mais honesto que um contador de invalidação:
     // `assigned_to_user_id` cobre assumir/transferir/liberar e `bot_silenced_until`
     // cobre pausar e devolver — que são exatamente os quatro gestos que geram linha.
-  }, [contactId, contact?.is_anonymized, tentativa, conversation?.assigned_to_user_id, conversation?.bot_silenced_until, conversation?.service_revision, conversation?.current_demanda_id]);
+  }, [
+    contactId,
+    contact?.is_anonymized,
+    tentativa,
+    conversation?.assigned_to_user_id,
+    conversation?.bot_silenced_until,
+    conversation?.service_revision,
+    conversation?.current_demanda_id,
+  ]);
 
   // Recarrega o resumo pelo MESMO caminho do "Tentar de novo": o efeito depende
   // de `tentativa`, então a demanda recém-marcada volta do servidor em vez de
@@ -903,7 +1037,8 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
   const sectionsLoading = useMemo(
     () =>
       !erro &&
-      (summaryContactId !== contactId || (leads === null && orders === null && activities === null && demandas === null)),
+      (summaryContactId !== contactId ||
+        (leads === null && orders === null && activities === null && demandas === null)),
     [erro, summaryContactId, contactId, leads, orders, activities, demandas],
   );
 
@@ -914,6 +1049,7 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
    * `InboxLeadEditor` mostra como ativo.
    */
   const negocioAtivoId = leadAtivoId ?? leads?.[0]?.id ?? null;
+  const negocioAtivo = leads?.find((lead) => lead.id === negocioAtivoId) ?? null;
 
   /**
    * RECOLHIDO (issue #3004): só o trilho, com o botão de expandir. Sem o
@@ -945,7 +1081,10 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
   }
 
   return (
-    <aside className="flex h-full min-w-0 flex-col gap-3 overflow-y-auto border-l border-border bg-surface-elevated p-3">
+    <aside
+      data-crm-details=""
+      className="flex h-full min-w-0 flex-col gap-3 overflow-y-auto border-l border-border bg-surface-elevated p-3"
+    >
       {/*
         O CONTROLE DE RECOLHER, NO ALTO (issue #3004) — mesmo lugar do recolher
         do menu da esquerda. `sticky` para não rolar para fora com o conteúdo, e
@@ -956,90 +1095,200 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
       */}
       {onAlternarRecolhido && (
         <div className="sticky top-0 z-10 -mx-3 -mt-3 flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-2">
-          <span className="truncate text-sm font-semibold tracking-tight text-foreground">{t("Ficha do contato")}</span>
+          <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+            {negocioAtivo?.title ?? displayName}
+          </span>
           <BotaoDeRecolherDoPainel recolhido={false} onAlternar={onAlternarRecolhido} />
         </div>
       )}
-      <section className="min-w-0">
-        <Card className="rounded-xl text-sm">
-          <div className="flex items-start gap-3 rounded-t-xl bg-accent-soft px-3 py-4">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground">
-              <IdentificationCard size={19} weight="regular" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{t("Contato")}</h3>
-              <div className="wrap-anywhere text-base leading-snug font-semibold tracking-tight text-foreground">{displayName}</div>
-              {/*
-                O TIPO DO CONTATO (issue 3005, fatia 1): lido da COLUNA
-                (`contacts.contact_type`, migration 0763), nunca da etiqueta
-                `fornecedor` — mesma régua do selo "Pessoal" da ficha: remover a
-                tag não pode apagar o que o banco diz. Só o fornecedor ganha selo
-                porque cliente é o padrão; um selo em toda conversa não informa nada.
-              */}
-              {contact?.contact_type === "fornecedor" && (
-                <Badge variant="secondary" className="mt-1">{t("Fornecedor")}</Badge>
-              )}
-              {contact?.phone_number && (
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Phone size={12} className="shrink-0" aria-hidden />
-                  <span className="wrap-anywhere">{phoneForDisplay(contact.phone_number)}</span>
-                </div>
-              )}
-            </div>
+      <div data-crm-summary="">
+        <strong>
+          {negocioAtivo && negocioAtivo.stage_id && (negocioAtivo.etapas_do_funil?.length ?? 0) > 0 ? (
+            <EtapaNoTopo key={negocioAtivo.id} lead={negocioAtivo} onMovido={recarregar} />
+          ) : (
+            (negocioAtivo?.etapa_nome ?? t("Contato"))
+          )}
+          {negocioAtivo?.funil_nome && (
+            <span data-crm-summary-funil="">{negocioAtivo.funil_nome}</span>
+          )}
+        </strong>
+        {/* Onde o negócio está no funil, de relance: uma barra por etapa, cheia
+            até a atual. Sem negócio, ou sem as etapas na resposta, não desenha. */}
+        {negocioAtivo?.etapas_do_funil && negocioAtivo.etapas_do_funil.length > 0 && (
+          <div data-crm-summary-etapas="" aria-hidden title="Progresso no funil: cada traço é uma etapa; os azuis são as que o cliente já passou.">
+            {(() => {
+              const ativas = negocioAtivo.etapas_do_funil.filter((e) => !e.is_won && !e.is_lost);
+              const atual = ativas.findIndex((e) => e.id === negocioAtivo.stage_id);
+              return ativas.map((e, i) => (
+                <span key={e.id} data-cheia={i <= atual ? "true" : undefined} title={e.name} />
+              ));
+            })()}
           </div>
-          <div className="space-y-2.5 border-t border-border px-3 py-3">
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {tags.map((t) => (
-                  <ChipDeEtiqueta key={t} tag={t} className="h-4 px-1.5 text-[10px]" />
-                ))}
-              </div>
+        )}
+        <nav aria-label={t("Abas da ficha")}>
+          {(
+            [
+              ["principal", "Principal"],
+              ["estatisticas", "Estatísticas"],
+              ["venda", "Venda"],
+            ] as const
+          ).map(([id, rotulo]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={aba === id ? "location" : undefined}
+              onClick={() => setAba(id)}
+            >
+              {t(rotulo)}
+            </button>
+          ))}
+        </nav>
+      </div>
+      {aba === "estatisticas" && (
+        <EstatisticasDoCliente
+          contact={contact as Record<string, unknown> | null}
+          leads={leads ?? []}
+          negocio={negocioAtivo}
+          canal={(conversation.channel_sessions as { display_name?: string | null } | null | undefined)?.display_name ?? null}
+          desde={conversation.created_at ?? null}
+        />
+      )}
+      {aba === "venda" && <VendaDoCliente negocio={negocioAtivo} leads={leads ?? []} onSalvo={recarregar} />}
+      {aba === "principal" && (
+        <>
+      <section data-testid="inbox-principal" className="min-w-0 text-sm">
+        {/* A FICHA EM LINHAS: rótulo à esquerda, valor à direita, sem caixas.
+            Quem atende lê de cima para baixo: quem cuida, quem é, como falar. */}
+        <dl className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3">
+          <dt className="text-muted-foreground">{t("Responsável")}</dt>
+          <dd className="truncate">
+            {(conversation as { assigned_to_user_name?: string | null }).assigned_to_user_name ?? (
+              <span className="text-muted-foreground">{t("Ninguém ainda")}</span>
             )}
-            {contactId && conversation && (
-              <Button asChild variant="secondary" size="sm" className="w-full justify-start px-2.5">
-                <Link href={`/app/agenda?contato=${contactId}&conversa=${conversation.id}`}>
-                  <CalendarBlank aria-hidden />
-                  {t("Marcar compromisso")}
-                </Link>
-              </Button>
+          </dd>
+        </dl>
+
+        <div className="mt-5 flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatarPadrao(contactId ?? conversation.id)}
+            alt=""
+            className="size-10 shrink-0 rounded-full"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold">{displayName}</p>
+            {contact?.contact_type === "fornecedor" && (
+              <Badge variant="secondary" className="mt-0.5">
+                {t("Fornecedor")}
+              </Badge>
             )}
-            <div className="flex flex-wrap gap-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 px-2"
-                disabled={readonly || !contactId}
+          </div>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-[8.5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3">
+          <dt className="text-muted-foreground">{t("Telefone")}</dt>
+          <dd className="break-all">
+            {contact?.phone_number ? (
+              <a href={`tel:${contact.phone_number}`} className="underline underline-offset-2">
+                {phoneForDisplay(contact.phone_number)}
+              </a>
+            ) : (
+              <span className="text-muted-foreground">…</span>
+            )}
+          </dd>
+          <dt className="text-muted-foreground">{t("E-mail")}</dt>
+          <dd className="break-all">
+            {(contact as { email?: string | null } | null)?.email ?? <span className="text-muted-foreground">…</span>}
+          </dd>
+          <dt className="text-muted-foreground">{t("Tags")}</dt>
+          <dd className="flex flex-wrap items-center gap-1">
+            {tags.map((tag) => (
+              <ChipDeEtiqueta key={tag} tag={tag} className="h-5 px-1.5 text-xs" />
+            ))}
+            {contactId && !readonly && (
+              <button
+                type="button"
                 aria-pressed={tagEditorOpen}
                 onClick={() => setTagEditorOpen((v) => !v)}
+                className="rounded px-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
               >
-                <Tag weight="regular" aria-hidden /> {t("Tags do contato")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 px-2"
-                disabled={readonly || !contactId || (leadDialogOpen && defaultPipeline.isLoading)}
-                onClick={() => setLeadDialogOpen(true)}
-              >
-                <Users weight="regular" aria-hidden />
-                {leadDialogOpen && defaultPipeline.isLoading ? t("Carregando…") : t("Novo Lead")}
-              </Button>
-              {contactId && (
-                <Button asChild size="sm" variant="ghost" className="gap-1.5 px-2">
-                  <Link href={`/app/contacts/${contactId}`}>
-                    {t("Ver contato")}
-                    <ArrowRight weight="regular" aria-hidden />
-                  </Link>
-                </Button>
-              )}
-            </div>
-            {tagEditorOpen && contactId && (
-              // Contexto de PESSOA: a etiqueta vai para `contacts.tags` (#2979).
-              <ContactTagsEditor entityId={contactId} orgId={conversation.organization_id} tags={tags} />
+                {tags.length ? t("editar") : t("adicionar")}
+              </button>
             )}
+          </dd>
+        </dl>
+        {tagEditorOpen && contactId && (
+          // Contexto de PESSOA: a etiqueta vai para `contacts.tags` (#2979).
+          <div className="mt-3">
+            <ContactTagsEditor entityId={contactId} orgId={conversation.organization_id} tags={tags} />
           </div>
-        </Card>
+        )}
+
+        <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-4">
+          <button
+            type="button"
+            disabled={readonly || !contactId || (leadDialogOpen && defaultPipeline.isLoading)}
+            onClick={() => setLeadDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 font-medium text-accent hover:underline disabled:opacity-50"
+          >
+            <Users weight="regular" aria-hidden />
+            {leadDialogOpen && defaultPipeline.isLoading ? t("Carregando…") : t("Novo negócio")}
+          </button>
+          {contactId && (
+            <Link
+              href={`/app/agenda?contato=${contactId}&conversa=${conversation.id}`}
+              className="inline-flex items-center gap-1.5 font-medium text-accent hover:underline"
+            >
+              <CalendarBlank aria-hidden />
+              {t("Marcar compromisso")}
+            </Link>
+          )}
+          {contactId && (
+            <Link
+              href={`/app/contacts/${contactId}`}
+              className="inline-flex items-center gap-1.5 font-medium text-accent hover:underline"
+            >
+              {t("Ver contato")}
+              <ArrowRight weight="regular" aria-hidden />
+            </Link>
+          )}
+        </div>
       </section>
+
+      <section className={SECAO_DO_PAINEL} data-testid="inbox-campos-lead">
+        <h3 className={TITULO_DA_SECAO}>{t("Negócio")}</h3>
+        {sectionsLoading ? (
+          <Skeleton className="mt-2 h-14 w-full" />
+        ) : leads && leads.length > 0 ? (
+          <fieldset disabled={readonly}>
+            <InboxLeadEditor
+              leads={leads}
+              selecionadoId={leadAtivoId}
+              onSelecionar={setLeadAtivoId}
+              onSalvo={recarregar}
+              podeLevarParaOutroFunil={podeLevarParaOutroFunil}
+              onTrocouDeNegocio={aoTrocarDeNegocio}
+            />
+          </fieldset>
+        ) : (
+          <SemLista
+            vazio="Sem leads."
+            erro={erro}
+            onTentarDeNovo={() => setTentativa((n) => n + 1)}
+          />
+        )}
+      </section>
+
+      {/* O ESSENCIAL FICA À VISTA, O RESTO FICA A UM CLIQUE. Contato e negócio
+          (etapa, valor, campos) respondem quase tudo de um atendimento; carteira,
+          tags da conversa, demandas, tarefas, memória, pedidos, atividade e
+          acervo continuam aqui, recolhidos, para quem precisar. */}
+      <details data-crm-mais="" className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-1 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">
+          {t("Mais informações do cliente")}
+          <span aria-hidden className="transition-transform group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="flex flex-col gap-3">
 
       {/* O BLOCO CARTEIRA NO PAINEL DO INBOX (#3026) — de quem é este cliente,
           respondido onde quem atende está. Antes a carteira só aparecia nesta
@@ -1071,11 +1320,17 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
       )}
 
       {contactId && summaryContactId === contactId && !erro && (
-        <AnuncioDoContato contactId={contactId} origem={anuncios.origem} recente={anuncios.recente} />
+        <AnuncioDoContato
+          contactId={contactId}
+          origem={anuncios.origem}
+          recente={anuncios.recente}
+        />
       )}
 
       <LeadEnrichment
-        data={summaryContactId === contactId && !erro && !contact?.is_anonymized ? enrichment : null}
+        data={
+          summaryContactId === contactId && !erro && !contact?.is_anonymized ? enrichment : null
+        }
         loading={sectionsLoading}
         error={erro || (summaryContactId === contactId && enrichmentError)}
         onRetry={recarregar}
@@ -1101,11 +1356,13 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
 
       <Separator />
 
-      {!readonly && <ConversationTagsEditor
-        conversationId={conversation.id}
-        orgId={conversation.organization_id}
-        tags={conversation.tags ?? []}
-      />}
+      {!readonly && (
+        <ConversationTagsEditor
+          conversationId={conversation.id}
+          orgId={conversation.organization_id}
+          tags={conversation.tags ?? []}
+        />
+      )}
 
       <Separator />
 
@@ -1114,9 +1371,7 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
           conversa está atendendo alguém que pediu alguma coisa — a primeira
           pergunta a responder é o que ainda está pendente, não quanto vale. */}
       <section className={SECAO_DO_PAINEL} data-testid="inbox-demandas">
-        <h3 className={TITULO_DA_SECAO}>
-          {t("Demandas abertas")}
-        </h3>
+        <h3 className={TITULO_DA_SECAO}>{t("Demandas abertas")}</h3>
         {sectionsLoading ? (
           <Skeleton className="mt-2 h-14 w-full" />
         ) : demandas && demandas.length > 0 ? (
@@ -1136,7 +1391,7 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
                     <span className="truncate font-medium">
                       {t(ESTADO_LEGIVEL[d.estado] ?? d.estado)}
                     </span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                    <span className="shrink-0 text-muted-foreground tabular-nums">
                       {t("há {tempo}").replace("{tempo}", `${horasDesde(d.aberta_em)}h`)}
                     </span>
                   </div>
@@ -1151,15 +1406,53 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
                       vazamento e tinha de sair da tela para resolver — peça que
                       só recebe é ilha pelo invariante 1, e foi o gate dos mapas
                       de arquitetura que apontou isso. */}
-                  {d.id === conversation.current_demanda_id && <Badge variant="outline">{t("Demanda vigente neste canal")}</Badge>}
-                  {!readonly && <EncerrarDemanda
-                    draft={desfechoDraft?.conversationId === conversation.id && desfechoDraft.contactId === contactId && desfechoDraft.demandaId === d.id ? desfechoDraft : null}
-                    onAbrir={() => { if (contactId) setDesfechoDraft({ conversationId: conversation.id, contactId, demandaId: d.id, revision: d.revision, desfecho: "resolvida", salvando: false }); }}
-                    onAlterar={(patch) => setDesfechoDraft((current) => current?.conversationId === conversation.id && current.contactId === contactId && current.demandaId === d.id ? { ...current, ...patch } : current)}
-                    onFechar={() => setDesfechoDraft((current) => current?.conversationId === conversation.id && current.contactId === contactId && current.demandaId === d.id ? null : current)}
-                    onPronto={recarregar}
-                  />}
-                  {semPasso && !readonly ? <MarcarProximoPasso demandaId={d.id} onPronto={recarregar} /> : null}
+                  {d.id === conversation.current_demanda_id && (
+                    <Badge variant="outline">{t("Demanda vigente neste canal")}</Badge>
+                  )}
+                  {!readonly && (
+                    <EncerrarDemanda
+                      draft={
+                        desfechoDraft?.conversationId === conversation.id &&
+                        desfechoDraft.contactId === contactId &&
+                        desfechoDraft.demandaId === d.id
+                          ? desfechoDraft
+                          : null
+                      }
+                      onAbrir={() => {
+                        if (contactId)
+                          setDesfechoDraft({
+                            conversationId: conversation.id,
+                            contactId,
+                            demandaId: d.id,
+                            revision: d.revision,
+                            desfecho: "resolvida",
+                            salvando: false,
+                          });
+                      }}
+                      onAlterar={(patch) =>
+                        setDesfechoDraft((current) =>
+                          current?.conversationId === conversation.id &&
+                          current.contactId === contactId &&
+                          current.demandaId === d.id
+                            ? { ...current, ...patch }
+                            : current,
+                        )
+                      }
+                      onFechar={() =>
+                        setDesfechoDraft((current) =>
+                          current?.conversationId === conversation.id &&
+                          current.contactId === contactId &&
+                          current.demandaId === d.id
+                            ? null
+                            : current,
+                        )
+                      }
+                      onPronto={recarregar}
+                    />
+                  )}
+                  {semPasso && !readonly ? (
+                    <MarcarProximoPasso demandaId={d.id} onPronto={recarregar} />
+                  ) : null}
                 </li>
               );
             })}
@@ -1205,42 +1498,48 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
         <FollowupDoContato
           contactId={contactId}
           podeEscrever={
-            !readonly && ((user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "manager"))
+            !readonly &&
+            ((user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "manager"))
           }
         />
       )}
 
       <section className={SECAO_DO_PAINEL} data-testid="inbox-memoria">
         <h3 className={TITULO_DA_SECAO}>{t("Memória do contato")}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">{t("Fatos duráveis registrados nas notas. Pendências pertencem à demanda vigente.")}</p>
-        {!sectionsLoading && fatos.map((f) => <details key={f.id} className="mt-2 text-xs"><summary className="wrap-anywhere">{f.headline}</summary><p className="mt-1 whitespace-pre-wrap wrap-anywhere">{f.body}</p></details>)}
-        {!sectionsLoading && fatos.length === 0 && <p className="mt-2 text-xs text-muted-foreground">{t("Nenhum fato durável registrado.")}</p>}
-        {!sectionsLoading && historico.length > 0 && <div className="mt-3 text-xs"><h4>{t("Histórico encerrado — sem tarefas pendentes")}</h4>{historico.map((h) => <p key={h.id}>{t(DESFECHO_LEGIVEL[h.desfecho] ?? h.desfecho)}{h.fechada_em ? ` · ${shortDate(h.fechada_em, localeDaData)}` : ""}</p>)}</div>}
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("Fatos duráveis registrados nas notas. Pendências pertencem à demanda vigente.")}
+        </p>
+        {!sectionsLoading &&
+          fatos.map((f) => (
+            <details key={f.id} className="mt-2 text-xs">
+              <summary className="wrap-anywhere">{f.headline}</summary>
+              <p className="mt-1 wrap-anywhere whitespace-pre-wrap">{f.body}</p>
+            </details>
+          ))}
+        {!sectionsLoading && fatos.length === 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("Nenhum fato durável registrado.")}
+          </p>
+        )}
+        {!sectionsLoading && historico.length > 0 && (
+          <div className="mt-3 text-xs">
+            <h4>{t("Histórico encerrado — sem tarefas pendentes")}</h4>
+            {historico.map((h) => (
+              <p key={h.id}>
+                {t(DESFECHO_LEGIVEL[h.desfecho] ?? h.desfecho)}
+                {h.fechada_em ? ` · ${shortDate(h.fechada_em, localeDaData)}` : ""}
+              </p>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* O que os roteiros de atendimento coletaram (módulo opcional; desligado
           ou sem roteiro, não desenha nada). */}
-      {contactId && !contact?.is_anonymized && <RoteirosDoContato contactId={contactId} variante="painel" />}
+      {contactId && !contact?.is_anonymized && (
+        <RoteirosDoContato contactId={contactId} variante="painel" />
+      )}
 
-      <section className={SECAO_DO_PAINEL} data-testid="inbox-campos-lead">
-        <h3 className={TITULO_DA_SECAO}>
-          {t("Leads recentes")}
-        </h3>
-        {sectionsLoading ? (
-          <Skeleton className="mt-2 h-14 w-full" />
-        ) : leads && leads.length > 0 ? (
-          <fieldset disabled={readonly}><InboxLeadEditor
-            leads={leads}
-            selecionadoId={leadAtivoId}
-            onSelecionar={setLeadAtivoId}
-            onSalvo={recarregar}
-            podeLevarParaOutroFunil={podeLevarParaOutroFunil}
-            onTrocouDeNegocio={aoTrocarDeNegocio}
-          /></fieldset>
-        ) : (
-          <SemLista vazio="Sem leads." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
-        )}
-      </section>
 
       {/* AS ÚLTIMAS COMPRAS (issue #3179): o que este cliente JÁ comprou — negócios
           ganhos em TODOS os funis, com data, título, valor, os campos escolhidos
@@ -1250,9 +1549,7 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
       {contactId && !contact?.is_anonymized && <UltimasComprasDoContato contactId={contactId} />}
 
       <section className={SECAO_DO_PAINEL}>
-        <h3 className={TITULO_DA_SECAO}>
-          {t("Pedidos recentes")}
-        </h3>
+        <h3 className={TITULO_DA_SECAO}>{t("Pedidos recentes")}</h3>
         {sectionsLoading ? (
           <Skeleton className="mt-2 h-14 w-full" />
         ) : orders && orders.length > 0 ? (
@@ -1275,14 +1572,16 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
             ))}
           </ul>
         ) : (
-          <SemLista vazio="Sem pedidos." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
+          <SemLista
+            vazio="Sem pedidos."
+            erro={erro}
+            onTentarDeNovo={() => setTentativa((n) => n + 1)}
+          />
         )}
       </section>
 
       <section className={SECAO_DO_PAINEL}>
-        <h3 className={TITULO_DA_SECAO}>
-          {t("Atividade")}
-        </h3>
+        <h3 className={TITULO_DA_SECAO}>{t("Atividade")}</h3>
         {sectionsLoading ? (
           <Skeleton className="mt-2 h-14 w-full" />
         ) : activities && activities.length > 0 ? (
@@ -1306,15 +1605,22 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
                   />
                   {t(activityLabel(a.type))}
                 </div>
-                {a.reason && <div className="mt-0.5 truncate text-muted-foreground">{t(a.reason)}</div>}
+                {a.reason && (
+                  <div className="mt-0.5 truncate text-muted-foreground">{t(a.reason)}</div>
+                )}
                 <div className="text-muted-foreground">
-                  {a.performed_by_name ?? t(actorLabel(a.actor_kind))} · {shortDate(a.performed_at, localeDaData)}
+                  {a.performed_by_name ?? t(actorLabel(a.actor_kind))} ·{" "}
+                  {shortDate(a.performed_at, localeDaData)}
                 </div>
               </li>
             ))}
           </ul>
         ) : (
-          <SemLista vazio="Sem atividade." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
+          <SemLista
+            vazio="Sem atividade."
+            erro={erro}
+            onTentarDeNovo={() => setTentativa((n) => n + 1)}
+          />
         )}
       </section>
 
@@ -1330,6 +1636,206 @@ export function CRMSidePanel({ conversation, recolhido = false, onAlternarRecolh
         </p>
         <AcervoSearch />
       </section>
+        </div>
+      </details>
+        </>
+      )}
     </aside>
+  );
+}
+
+
+const fmtBRL = (cents: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+const CHAVES_RASTREADAS = /^(utm_|gclid|gclientid|fbclid|referrer|ctwa_clid|source_url)/i;
+
+/** Aba "Estatísticas": de onde o cliente veio e o histórico dele, em números. */
+function EstatisticasDoCliente({
+  contact,
+  leads,
+  negocio,
+  canal,
+  desde,
+}: {
+  contact: Record<string, unknown> | null;
+  leads: LeadRow[];
+  negocio: LeadRow | null;
+  canal: string | null;
+  desde: string | null;
+}) {
+  const t = useT();
+  const criado = (contact?.created_at as string | undefined) ?? desde;
+  const dias = criado ? Math.max(0, Math.floor((Date.now() - new Date(criado).getTime()) / 86_400_000)) : null;
+  const fonte = (contact?.source as string | undefined) ?? null;
+  const ganhos = leads.filter((l) => l.status === "won");
+  const perdidos = leads.filter((l) => l.status === "lost");
+  const totalGanho = ganhos.reduce((acc, l) => acc + (l.value_cents ?? 0), 0);
+
+  const rastreio: Array<[string, string]> = [];
+  for (const origem of [
+    negocio?.custom_fields,
+    (contact?.source_metadata as Record<string, unknown> | undefined) ?? null,
+  ]) {
+    for (const [k, v] of Object.entries(origem ?? {})) {
+      if (CHAVES_RASTREADAS.test(k) && v != null && String(v).trim() !== "") rastreio.push([k, String(v)]);
+    }
+  }
+
+  return (
+    <section className="min-w-0 space-y-5" data-testid="inbox-estatisticas">
+      <div>
+        <h3 className="text-sm font-semibold">{t("De onde veio")}</h3>
+        <p className="mt-1 text-sm">
+          {fonte === "whatsapp" || !fonte ? "WhatsApp" : fonte}
+          {canal ? ` · ${canal}` : ""}
+          {criado ? ` · ${new Date(criado).toLocaleDateString("pt-BR")}` : ""}
+        </p>
+      </div>
+      <div>
+        <p className="text-5xl font-light text-accent tabular-nums">{dias ?? "—"}</p>
+        <p className="text-sm text-accent">{t("dias desde o primeiro contato")}</p>
+      </div>
+      <dl className="grid grid-cols-[1fr_auto] gap-y-2 border-t border-border pt-4 text-sm">
+        <dt>{t("Negócios")}</dt>
+        <dd className="text-right tabular-nums">{leads.length}</dd>
+        <dt>{t("Vendas ganhas")}</dt>
+        <dd className="text-right tabular-nums text-emerald-600">{ganhos.length}</dd>
+        <dt>{t("Vendas perdidas")}</dt>
+        <dd className="text-right tabular-nums text-red-600">{perdidos.length}</dd>
+        <dt>{t("Total já comprado")}</dt>
+        <dd className="text-right font-semibold tabular-nums">{fmtBRL(totalGanho)}</dd>
+      </dl>
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-semibold">{t("Informação rastreada")}</h3>
+        {rastreio.length === 0 ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("Nenhuma campanha registrada: o cliente chegou direto, sem link de anúncio ou formulário.")}
+          </p>
+        ) : (
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+            {rastreio.map(([k, v]) => (
+              <Fragment key={k}>
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="break-all">{v}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Aba "Venda": quanto este negócio vale e quanto o cliente já pagou. */
+function VendaDoCliente({
+  negocio,
+  leads,
+  onSalvo,
+}: {
+  negocio: LeadRow | null;
+  leads: LeadRow[];
+  onSalvo: () => void;
+}) {
+  const t = useT();
+  const edit = useEditLead(negocio?.pipeline_id ?? "");
+  const mover = useBulkAction(negocio?.pipeline_id ?? "");
+  const [valor, setValor] = useState(() =>
+    negocio?.value_cents != null ? (negocio.value_cents / 100).toFixed(2).replace(".", ",") : "",
+  );
+  const ganhos = leads.filter((l) => l.status === "won");
+  const totalGanho = ganhos.reduce((acc, l) => acc + (l.value_cents ?? 0), 0);
+
+  if (!negocio) {
+    return (
+      <section className="space-y-2" data-testid="inbox-venda">
+        <p className="text-sm text-muted-foreground">
+          {t("Este cliente ainda não tem negócio. Na aba Principal, clique em \"Novo Lead\" para criar um.")}
+        </p>
+      </section>
+    );
+  }
+
+  const etapaGanha = (negocio.etapas_do_funil ?? []).find((e) => e.is_won) ?? null;
+
+  async function salvar() {
+    const limpo = valor.replace(/\./g, "").replace(",", ".").trim();
+    const numero = limpo === "" ? null : Number(limpo);
+    if (numero !== null && (!Number.isFinite(numero) || numero < 0)) {
+      toast.error(t("Digite um valor válido, por exemplo 150,00."));
+      return;
+    }
+    try {
+      await edit.mutateAsync({
+        leadId: negocio!.id,
+        patch: { value_cents: numero === null ? null : Math.round(numero * 100) },
+      });
+      toast.success(t("Valor salvo."));
+      onSalvo();
+    } catch {
+      // o hook já mostrou o erro
+    }
+  }
+
+  async function marcarGanha() {
+    if (!etapaGanha) return;
+    try {
+      await mover.mutateAsync({ action: "move", lead_ids: [negocio!.id], params: { stage_id: etapaGanha.id } });
+      toast.success(t("Venda marcada como ganha."));
+      onSalvo();
+    } catch {
+      // o hook já mostrou o erro
+    }
+  }
+
+  return (
+    <section className="min-w-0 space-y-5" data-testid="inbox-venda">
+      <div className="space-y-2">
+        <label htmlFor="valor-da-venda" className="block text-sm font-semibold">
+          {t("Valor desta venda")}
+        </label>
+        <div className="flex items-center gap-2">
+          <span className="text-base text-muted-foreground">R$</span>
+          <input
+            id="valor-da-venda"
+            inputMode="decimal"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void salvar()}
+            placeholder="0,00"
+            className="h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-base tabular-nums focus:border-accent focus:outline-hidden"
+          />
+          <Button className="h-11" onClick={() => void salvar()} disabled={edit.isPending}>
+            {edit.isPending ? t("Salvando…") : t("Salvar")}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t("Quanto o cliente pagou (ou vai pagar) neste negócio.")}
+        </p>
+      </div>
+
+      {negocio.status === "won" ? (
+        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+          {t("Esta venda já está marcada como ganha.")}
+        </p>
+      ) : etapaGanha ? (
+        <Button
+          variant="outline"
+          className="h-11 w-full border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+          onClick={() => void marcarGanha()}
+          disabled={mover.isPending}
+        >
+          {t("Marcar como venda ganha")}
+        </Button>
+      ) : null}
+
+      <div className="rounded-lg border border-border p-4">
+        <p className="text-sm text-muted-foreground">{t("Este cliente já comprou")}</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums">{fmtBRL(totalGanho)}</p>
+        <p className="text-sm text-muted-foreground">
+          {ganhos.length} {ganhos.length === 1 ? t("venda ganha") : t("vendas ganhas")}
+        </p>
+      </div>
+    </section>
   );
 }

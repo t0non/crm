@@ -41,10 +41,7 @@ import {
   payloadDeUso,
   type TemplateContact,
 } from "@/lib/inbox/template-vars";
-import {
-  type AvisoDeRascunho,
-  type MotivoDeRecusa,
-} from "@/lib/inbox/rascunho-sugerido";
+import { type AvisoDeRascunho, type MotivoDeRecusa } from "@/lib/inbox/rascunho-sugerido";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
@@ -427,15 +424,17 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             // `embutirMencoes` pareia ocorrência e escolha por ordem.
             const restaurado = restaurar(taRef.current?.value ?? "");
             setMencoes((atual) =>
-              podarMencoes(restaurado, [...mencoesEnviadas, ...atual.filter((m) => !mencoesEnviadas.includes(m))]),
+              podarMencoes(restaurado, [
+                ...mencoesEnviadas,
+                ...atual.filter((m) => !mencoesEnviadas.includes(m)),
+              ]),
             );
           },
           // Só depois de gravar, e só as escolhas DESTA nota — a lista pode já
           // ter a menção da PRÓXIMA, escolhida enquanto esta ainda estava no ar
           // (`mencoesEnviadas`): zerar tudo apagava a escolha dela, e a nota
           // seguinte sairia como texto puro (com homônimos, avisando os dois).
-          onSuccess: () =>
-            setMencoes((atual) => atual.filter((m) => !mencoesEnviadas.includes(m))),
+          onSuccess: () => setMencoes((atual) => atual.filter((m) => !mencoesEnviadas.includes(m))),
         },
       );
       return;
@@ -565,7 +564,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     // precisa editar antes de mandar.
     if (motivoDoCuringaLiteral(template.body, contato)) {
       toast.warning(
-        t("Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar."),
+        t(
+          "Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar.",
+        ),
       );
     }
 
@@ -765,6 +766,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   return (
     <>
       <div
+        data-chat-composer=""
         className={cn(
           "relative rounded-b-xl border-t border-border bg-card px-3 py-2.5",
           mode === "note" && "border-warning/40 bg-warning-bg",
@@ -834,7 +836,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             className="mb-1.5 flex items-start gap-2 rounded-md border-l-2 border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-fg"
           >
             <p className="min-w-0 flex-1">
-              {t("Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar.")}
+              {t(
+                "Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar.",
+              )}
             </p>
           </div>
         )}
@@ -1044,7 +1048,13 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             aria-label={t("Mensagem")}
           />
           {podeEnviarOrcamento && mode === "reply" && text.trim() && (
-            <Button type="button" size="sm" variant="outline" onClick={() => handleSubmit(true)} disabled={envioBarrado}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleSubmit(true)}
+              disabled={envioBarrado}
+            >
               {t("Enviar orçamento")}
             </Button>
           )}

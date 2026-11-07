@@ -1,5 +1,5 @@
 // Design tokens for DeskcommCRM showcase.
-// "Soft-tech / calmo" — neutros desaturados (greige/warm-gray), accent não-saturado.
+// Neutros desaturados (greige/warm-gray) com acentos próprios de cada paleta.
 // 5-Constraint Rule applied: Shape, Color (exact hex), Typography, Motion, Layout.
 
 export type PaletteId = "sage" | "clay" | "mist" | "plum" | "olive";
@@ -96,12 +96,12 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
   },
   mist: {
     id: "mist",
-    name: "Mist",
-    description: "Azul-poeira frio. Discreto, focado, marítimo.",
+    name: "Azul Voltaico",
+    description: "Cobalto elétrico com um reflexo violeta, sobre neutros suaves.",
     accent: {
-      50: "#f1f4f7", 100: "#dde5ec", 200: "#b8c8d6", 300: "#8da7bd",
-      400: "#6789a3", 500: "#4f6f88", 600: "#3f586d", 700: "#344758",
-      800: "#2a3a48", 900: "#22303b", 950: "#11181d",
+      50: "#f1f4ff", 100: "#e4eaff", 200: "#ccd7ff", 300: "#a5b7ff",
+      400: "#7d96ff", 500: "#536dff", 600: "#3547f5", 700: "#2d30d7",
+      800: "#2827a9", 900: "#24247d", 950: "#141445",
     },
     neutralLight: {
       50: "#f8f8f6", 100: "#eeede9", 200: "#dddbd3", 300: "#bcb9ad",
@@ -114,8 +114,8 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       800: "#181712", 900: "#11100d", 950: "#080807",
     },
     states: {
-      light: { success: "#54845d", warning: "#a47428", error: "#a14739", info: "#3f5f7a" },
-      dark:  { success: "#7ea286", warning: "#cd954b", error: "#c47866", info: "#7099b6" },
+      light: { success: "#54845d", warning: "#a47428", error: "#a14739", info: "#255bbd" },
+      dark:  { success: "#7ea286", warning: "#cd954b", error: "#c47866", info: "#79b2ff" },
     },
     surfaces: {
       light: { bg: "#f8f8f6", surface: "#ffffff", surfaceElevated: "#f1f1ed", text: "#181712", textMuted: "#4b4943", border: "#dddbd3" },

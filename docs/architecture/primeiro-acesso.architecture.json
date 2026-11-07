@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Primeiro acesso e perfil pessoal",
+    "subtitle": "Login existente, boas-vindas persistidas e continuidade para conversas",
+    "output": "primeiro-acesso.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "entrada", "label": "Entrada e portões" },
+    { "id": "tela", "label": "Interface" },
+    { "id": "persistencia", "label": "Perfil e trilha" },
+    { "id": "consumidores", "label": "Consumidores" }
+  ],
+  "mainPath": ["login", "portoes", "modal", "salvar", "perfil"],
+  "nodes": [
+    {
+      "id": "login",
+      "lane": "entrada",
+      "col": 0,
+      "type": "service",
+      "label": "Login existente → /app/inbox"
+    },
+    {
+      "id": "portoes",
+      "lane": "entrada",
+      "col": 1,
+      "type": "service",
+      "label": "AppLayout: sessão, organização, onboarding e MFA"
+    },
+    {
+      "id": "usuario",
+      "lane": "persistencia",
+      "col": 0,
+      "type": "service",
+      "label": "loadAuthUser → lerBoasVindas"
+    },
+    {
+      "id": "modal",
+      "lane": "tela",
+      "col": 2,
+      "type": "frontend",
+      "label": "BoasVindasGate / PreferenciasBoasVindas"
+    },
+    {
+      "id": "salvar",
+      "lane": "persistencia",
+      "col": 3,
+      "type": "service",
+      "label": "salvarBoasVindas: Zod + identidade da sessão"
+    },
+    {
+      "id": "perfil",
+      "lane": "persistencia",
+      "col": 4,
+      "type": "database",
+      "label": "auth.users.user_metadata: boas_vindas + avatar_url"
+    },
+    {
+      "id": "audit",
+      "lane": "persistencia",
+      "col": 4,
+      "type": "database",
+      "label": "api_audit_log: profile.updated, sem telefone"
+    },
+    {
+      "id": "settings",
+      "lane": "consumidores",
+      "col": 5,
+      "type": "frontend",
+      "label": "/app/settings/profile"
+    },
+    {
+      "id": "avatar",
+      "lane": "consumidores",
+      "col": 5,
+      "type": "frontend",
+      "label": "UserMenu e Sidebar"
+    },
+    {
+      "id": "inbox",
+      "lane": "consumidores",
+      "col": 5,
+      "type": "frontend",
+      "label": "InicioConversas → Conexões / Contatos"
+    }
+  ],
+  "edges": [
+    { "from": "login", "to": "portoes", "label": "autenticação real" },
+    { "from": "portoes", "to": "modal", "label": "casca autorizada" },
+    { "from": "perfil", "to": "usuario", "label": "preferências persistidas" },
+    { "from": "usuario", "to": "modal", "label": "mostrar só enquanto não concluído" },
+    { "from": "modal", "to": "salvar", "label": "Próximo" },
+    { "from": "salvar", "to": "perfil", "label": "updateUser da própria sessão" },
+    { "from": "salvar", "to": "audit", "label": "sucesso, sem telefone" },
+    { "from": "salvar", "to": "modal", "label": "erro preserva escolhas" },
+    { "from": "perfil", "to": "settings", "label": "ver e alterar" },
+    { "from": "settings", "to": "salvar", "label": "mesma operação" },
+    { "from": "usuario", "to": "avatar", "label": "avatar pessoal" },
+    { "from": "modal", "to": "inbox", "label": "concluir ou adiar" }
+  ]
+}

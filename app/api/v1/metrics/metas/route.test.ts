@@ -106,6 +106,14 @@ function fakeSupabase(dados: Record<string, Linha[]>, erroEm?: string) {
         );
         return builder;
       };
+      builder.order = () => builder;
+      builder.range = (inicio: number, fim: number) => {
+        const resultado = executar();
+        return Promise.resolve({
+          ...resultado,
+          data: (resultado.data as Linha[] | null)?.slice(inicio, fim + 1) ?? null,
+        });
+      };
       builder.then = (
         ok?: (v: Resposta) => unknown,
         erro?: (e: unknown) => unknown,
@@ -195,6 +203,26 @@ beforeEach(() => {
 });
 
 describe("GET /api/v1/metrics/metas", () => {
+  it("soma o valor em centavos só das vendas ganhas na janela e na moeda da meta", async () => {
+    permitido();
+    const { client } = fakeSupabase({
+      crm_metas: [meta("faturamento", { indicador: "valor_vendas_ganhas", alvo: 1_000_000 })],
+      crm_leads: [
+        lead("g1", { currency: "BRL", value_cents: 150_000 }),
+        lead("g2", { currency: "BRL", value_cents: 100_000 }),
+        lead("g3", { currency: "USD", value_cents: 400_000 }),
+        lead("g4", { currency: "BRL", value_cents: 400_000, status: "lost" }),
+        lead("g5", { currency: "BRL", value_cents: 400_000, closed_at: ATE }),
+      ],
+    });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+
+    const { status, data } = await chamar(`${URL}&indicador=valor_vendas_ganhas`);
+    expect(status).toBe(200);
+    expect(data.metas).toEqual([
+      expect.objectContaining({ alvo: 1_000_000, realizado: 250_000, percentual: 25, falta: 750_000 }),
+    ]);
+  });
   it("com meta: devolve alvo, realizado da janela, percentual e quanto falta", async () => {
     permitido();
     const { consultas, client } = fakeSupabase(setembro());

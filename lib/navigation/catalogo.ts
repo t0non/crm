@@ -250,6 +250,9 @@ export const NAV_CATALOG = [
     // SÓ NO HUB, como as demais telas de preparação: o quinto item do sidebar do
     // CRM já fez o menu rolar 13px em 900px (e2e `navegacao.spec.ts`), e a
     // campanha é montada de vez em quando, não aberta todo dia.
+    // Volta ao menu como "Transmissão", dentro do grupo Automações montado por
+    // `composicao-crm.ts` — que tirou do menu seis destinos de grupos com hub.
+    sidebar: true,
   },
   {
     href: "/app/contacts",

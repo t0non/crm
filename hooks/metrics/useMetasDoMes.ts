@@ -37,12 +37,15 @@ export interface MetasDoMes {
   explicacao: string | null;
 }
 
-export function useMetasDoMes(janela: { from: string; to: string }) {
-  const qs = `?from=${encodeURIComponent(janela.from)}&to=${encodeURIComponent(janela.to)}`;
+export function useMetasDoMes(
+  janela: { from: string; to: string },
+  indicador: "vendas_ganhas" | "valor_vendas_ganhas" = "vendas_ganhas",
+) {
+  const qs = new URLSearchParams({ ...janela, indicador });
   return useQuery({
-    queryKey: ["metrics", "metas", janela.from, janela.to],
+    queryKey: ["metrics", "metas", janela.from, janela.to, indicador],
     queryFn: async () =>
-      apiClient.get<{ data: MetasDoMes }>(`/api/v1/metrics/metas${qs}`),
+      apiClient.get<{ data: MetasDoMes }>(`/api/v1/metrics/metas?${qs}`),
     staleTime: 30_000,
   });
 }

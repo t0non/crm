@@ -1,0 +1,247 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.43);
+}
+.modal,
+.panel {
+  color: #100536;
+  background: #fff;
+  font-family: var(--font-landing-euclid), var(--font-inter), Arial, sans-serif;
+  color-scheme: light;
+}
+.modal {
+  position: fixed;
+  z-index: 81;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(580px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border-radius: 24px;
+  box-shadow: 0 18px 45px #0002;
+  outline: none;
+}
+.panel {
+  max-width: 580px;
+  border: 1px solid #e5e2ee;
+  border-radius: 24px;
+  overflow: hidden;
+  margin-top: 28px;
+}
+.form {
+  margin: 0;
+}
+.content {
+  padding: 46px 32px 54px;
+  min-height: 514px;
+}
+.title {
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 24px;
+  line-height: 1.4;
+}
+.content fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.content legend,
+.label {
+  font-size: 14px;
+  color: #48434f;
+  margin-bottom: 12px;
+}
+.avatars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+.avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background: #f2edff;
+  color: #6650bb;
+  cursor: pointer;
+}
+.avatar:nth-child(2) {
+  background: #fff4bc;
+}
+.avatar:nth-child(4) {
+  background: #e6dcff;
+}
+.avatar:nth-child(6) {
+  background: #ffe3a4;
+}
+.avatar[data-selected="true"] {
+  outline: 2px solid #6a40e5;
+  outline-offset: 3px;
+}
+.avatar:focus-within {
+  box-shadow: 0 0 0 4px #cfc0ff;
+}
+.avatar input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+  pointer-events: none;
+}
+.label {
+  display: block;
+  margin-top: 36px;
+  margin-bottom: 9px;
+}
+.content select,
+.phone {
+  width: 100%;
+  border: 2px solid #170941;
+  border-radius: 10px;
+  background: #fff;
+  height: 58px;
+  color: #37313f;
+}
+.content select {
+  padding: 0 16px;
+  font: inherit;
+  font-size: 14px;
+}
+.phone {
+  display: flex;
+  align-items: center;
+}
+.phone > span {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 44px;
+  border-right: 1px solid #9186ad;
+  flex-shrink: 0;
+}
+.phone input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0 12px;
+  height: 50px;
+  color: #100536;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+.phone:focus-within {
+  outline: 3px solid #d5c9fb;
+  outline-offset: 2px;
+}
+.help {
+  font-size: 11px;
+  color: #7c7488;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+.error {
+  font-size: 13px;
+  color: #aa263c;
+  margin-top: 18px;
+}
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  padding: 20px 32px;
+  border-top: 1px solid #e4e0ed;
+  min-height: 66px;
+}
+.footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: #100536;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.footer .skip {
+  margin-right: auto;
+  color: #7b7488;
+  font-weight: 400;
+  font-size: 12px;
+}
+.footer button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.form :focus-visible {
+  outline: 3px solid #b7a4f2;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .content {
+    padding: 30px 22px 36px;
+    min-height: 0;
+  }
+  .title {
+    font-size: 18px;
+  }
+  .avatars {
+    gap: 8px;
+  }
+  .label {
+    margin-top: 30px;
+  }
+  .footer {
+    padding: 19px 22px;
+  }
+  .modal {
+    border-radius: 20px;
+  }
+  .help {
+    font-size: 10px;
+  }
+}
+.avatar {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.supportSelect {
+  position: relative;
+}
+.supportSelect > img {
+  position: absolute;
+  left: 16px;
+  top: 20px;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+.supportSelect select {
+  padding-left: 43px;
+}

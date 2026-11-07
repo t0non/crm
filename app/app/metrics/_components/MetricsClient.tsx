@@ -1,51 +1,42 @@
 "use client";
+/**
+ * Desempenho — o painel do dono, em linguagem de dono.
+ *
+ * Na frente, só três perguntas: (1) vou bater a meta do mês? (2) quanto
+ * vendi e perdi nos últimos 30 dias? (3) onde estão os clientes agora?
+ * Os relatórios técnicos (atrito, perdas, previsão, canais, série) não
+ * sumiram: ficam em "Relatórios detalhados", fechados por padrão.
+ */
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
-import { useT } from "@/hooks/i18n/useT";
-import { useState } from "react";
-
-import { useAttendantMetrics, type AttendantMetric } from "@/hooks/metrics/useAttendantMetrics";
+import { definirMetaMensal } from "@/app/actions/settings/definirMetaMensal";
 import { EmptyState } from "@/components/empty/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAttendantMetrics, type AttendantMetric } from "@/hooks/metrics/useAttendantMetrics";
+import { useMetasDoMes } from "@/hooks/metrics/useMetasDoMes";
+import { useT } from "@/hooks/i18n/useT";
+import { useTeamMembers } from "@/hooks/team/useTeamMembers";
 import { formatarDuracao } from "@/lib/metrics/canais";
-import { WarningOctagon } from "@/lib/ui/icons";
+import { janelaDoMes, mesLocal } from "@/lib/metas/periodo";
+import { PencilSimple, Plus, WarningOctagon } from "@/lib/ui/icons";
+import { cn } from "@/lib/utils";
+
 import { AtritoPanel } from "./AtritoPanel";
 import { CanaisPanel } from "./CanaisPanel";
-import { MetaDoMesPanel, type EstadoDaMeta } from "./MetaDoMesPanel";
 import { PerdasPanel } from "./PerdasPanel";
 import { PrevisaoPanel } from "./PrevisaoPanel";
 import { SeriePanel } from "./SeriePanel";
-import { useMetasDoMes } from "@/hooks/metrics/useMetasDoMes";
-import { janelaDoMes, mesLocal } from "@/lib/metas/periodo";
-import { useTeamMembers } from "@/hooks/team/useTeamMembers";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const ALL = "__all__";
-
-/**
- * Célula de número que, no celular, vira "Rótulo valor" dentro do cartão: o
- * cabeçalho some abaixo de `md` e o rótulo vem do `data-rotulo` da própria
- * célula. Só classes `max-md:` — no computador é a tabela de sempre.
- */
-const CELULA_DE_NUMERO = "text-right tabular-nums max-md:p-0 max-md:text-left max-md:before:mr-1 max-md:before:text-muted-foreground max-md:before:content-[attr(data-rotulo)]";
 
 function attendantLabel(a: AttendantMetric, t: (texto: string) => string): string {
   return a.name ?? a.email ?? `${t("Atendente")} ${a.user_id.slice(0, 8)}`;
 }
+
+const CARTAO = "rounded-xl border border-border bg-card p-5";
 
 interface Props {
   canCompare: boolean;
@@ -57,224 +48,297 @@ export function MetricsClient({ canCompare, currentUserId }: Props) {
   const [owner, setOwner] = useState<string>(ALL);
   const selectedOwner = owner === ALL ? null : owner;
   const { data, isLoading, isError, refetch } = useAttendantMetrics(selectedOwner);
-  // Opções do filtro: só manager+ (a rota /team é manager+). Agent nem vê o filtro.
   const team = useTeamMembers({ enabled: canCompare });
 
-  // A meta é MENSAL e a janela é o mês corrente de quem está olhando a tela
-  // (o mês é o dele, não um instante UTC — ver `lib/metas/periodo.ts`). Fixada
-  // uma vez por montagem: remontar a cada render refaria o pedido sem mudança
-  // nenhuma de dado.
   const [janelaDaMeta] = useState(() => janelaDoMes(mesLocal()));
   const metasDoMes = useMetasDoMes(janelaDaMeta);
-  const estadoDaMeta: EstadoDaMeta = metasDoMes.isLoading
-    ? "carregando"
-    : metasDoMes.isError || !metasDoMes.data
-      ? "erro"
-      : metasDoMes.data.data.motivo === "sem_meta"
-        ? "vazio"
-        : "ok";
 
-  // ─── CARREGANDO: a SILHUETA da tela, não a palavra "Carregando…" ──────────
-  //
-  // Era `<p>Carregando…</p>`: uma linha de texto cinza no alto de uma tela
-  // vazia. Esqueleto com a forma certa faz a espera parecer continuação;
-  // retângulo genérico — ou uma frase — faz parecer que a página trocou. É o
-  // que o resto do produto já faz (`app/app/kanban/loading.tsx` desenha 5
-  // colunas × 3 cards, `components/agenda/estados.tsx` desenha a grade).
-  //
-  // As três faixas abaixo são as três seções reais: o filtro de atendente, os
-  // painéis de atrito/perdas/previsão, e a tabela por atendente.
   if (isLoading) {
     return (
-      <div
-        className="flex min-w-0 flex-col gap-5"
-        aria-busy="true"
-        aria-label={t("Carregando o desempenho")}
-      >
-        {canCompare ? <Skeleton className="h-10 w-full max-w-64" /> : null}
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-5 w-40" />
+      <div className="flex flex-col gap-4" aria-busy="true" aria-label={t("Carregando o desempenho")}>
+        <Skeleton className="h-40 w-full" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-10 w-full" />
+            <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }
 
-  // ─── ERRO: diz o que houve e oferece saída ────────────────────────────────
-  //
-  // Era `<p class="text-destructive">Erro ao carregar métricas.</p>` — uma frase
-  // vermelha solta no alto de uma tela em branco, sem ícone, sem explicação e
-  // sem nada para clicar. Visto na captura de 360px: a tela inteira era o
-  // título, a descrição e aquela linha.
-  //
-  // O `EmptyState` da casa é o mesmo componente que as telas vazias usam, então
-  // a tela de erro passa a ter a mesma forma das outras — e um "Tentar de novo"
-  // que de fato refaz a consulta, em vez de pedir F5.
   if (isError || !data) {
     return (
       <EmptyState
         icon={WarningOctagon}
         headline="Não consegui carregar o desempenho"
-        subcopy="Pode ser uma falha de rede, ou este painel pode não estar incluído no plano da sua empresa."
+        subcopy="Pode ser uma falha de rede. Tente de novo em instantes."
         primary={{ label: t("Tentar de novo"), onClick: () => void refetch() }}
       />
     );
   }
 
   const metrics = data.data;
-  const funnelTotal = metrics.funnel.reduce((acc, s) => acc + s.count, 0);
-  const maxCount = Math.max(1, ...metrics.funnel.map((s) => s.count));
+  const somar = (f: (a: AttendantMetric) => number) => metrics.attendants.reduce((acc, a) => acc + f(a), 0);
+  const ganhos = somar((a) => a.won);
+  const perdidos = somar((a) => a.lost);
+  const conversas = somar((a) => a.conversations_handled);
+  const tempos = metrics.attendants
+    .map((a) => a.avg_first_response_seconds)
+    .filter((v): v is number => typeof v === "number");
+  const tempoMedio = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : null;
+
+  const etapasComGente = metrics.funnel.filter((s) => s.count > 0);
+  const maior = Math.max(1, ...etapasComGente.map((s) => s.count));
+
+  const meta = metasDoMes.data?.data.metas?.find((m) => m.escopo === "empresa") ?? null;
 
   return (
-    <div className="flex min-w-0 flex-col gap-5 lg:gap-6">
-      {canCompare ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 sm:justify-between">
-          <label htmlFor="filtro-atendente" className="text-sm font-medium">{t("Atendente")}</label>
-          <Select value={owner} onValueChange={setOwner}>
-            <SelectTrigger id="filtro-atendente" className="w-full min-w-0 sm:w-64">
-              <SelectValue placeholder={t("Todos os atendentes")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t("Todos os atendentes")}</SelectItem>
-              {(team.data?.data ?? [])
-                .filter((m) => m.role !== "viewer")
-                .map((m) => (
-                  <SelectItem key={m.user_id} value={m.user_id}>
-                    {m.full_name ?? m.email ?? m.user_id.slice(0, 8)}
-                    {m.user_id === currentUserId ? ` ${t("(você)")}` : ""}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+    <div className="flex min-w-0 flex-col gap-5">
+      {canCompare && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="filtro-atendente" className="text-sm font-medium">
+            {t("Ver os números de")}
+          </label>
+          <select
+            id="filtro-atendente"
+            value={owner}
+            onChange={(e) => setOwner(e.target.value)}
+            className="h-10 min-w-0 rounded-md border border-border bg-card px-3 text-sm sm:w-64"
+          >
+            <option value={ALL}>{t("Toda a equipe")}</option>
+            {(team.data?.data ?? [])
+              .filter((m) => m.role !== "viewer")
+              .map((m) => (
+                <option key={m.user_id} value={m.user_id}>
+                  {m.full_name ?? m.email ?? m.user_id.slice(0, 8)}
+                  {m.user_id === currentUserId ? ` ${t("(você)")}` : ""}
+                </option>
+              ))}
+          </select>
         </div>
-      ) : null}
+      )}
 
-      {/* Acima do funil e da performance de propósito: é o número do sistema
-          inteiro, ao qual as métricas de área se subordinam (doutrina §3.6).
-          Não filtra por atendente — atrito é propriedade do sistema, e quebrá-lo
-          por pessoa convida a otimização local que degrada o todo. */}
-      <AtritoPanel podeEditarRegua={canCompare} />
+      <MetaSimples
+        carregando={metasDoMes.isLoading}
+        alvo={meta?.alvo ?? null}
+        realizado={meta?.realizado ?? 0}
+        podeEditar={canCompare}
+        onSalvo={() => void metasDoMes.refetch()}
+      />
 
-      {/* Relatório "Perdas" (#1537): manager+, porque é o funil inteiro — o
-          mesmo critério do /metrics para quem compara. */}
-      {canCompare ? <PerdasPanel /> : null}
+      <section aria-label={t("Últimos 30 dias")} className="space-y-2">
+        <h2 className="text-sm font-medium text-muted-foreground">{t("Últimos 30 dias")}</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Numero rotulo={t("Vendas fechadas")} valor={String(ganhos)} cor="text-emerald-600" />
+          <Numero rotulo={t("Vendas perdidas")} valor={String(perdidos)} cor="text-red-600" />
+          <Numero rotulo={t("Conversas atendidas")} valor={String(conversas)} />
+          <Numero rotulo={t("Tempo médio para responder")} valor={formatarDuracao(tempoMedio)} />
+        </div>
+      </section>
 
-      {/* Previsão ponderada do funil (issue #1535): por mês × moeda, com os
-          baldes "sem data" e "sem probabilidade" à parte. Depois do atrito de
-          propósito — é o número da EQUIPE comercial, que se subordina ao do
-          sistema inteiro acima. */}
-      <PrevisaoPanel />
-
-      {/* A meta do mês (issue #3025, fatia 1) logo acima do funil: é o ALVO, e
-          as barras do funil abaixo são o caminho até ele. O denominador é da
-          empresa (não do atendente filtrado), então este painel não segue o
-          `Select` — o alvo é um só, e o realizado é o que a empresa fechou.
-          `canCompare` (manager+) abre a porta do cadastro, a mesma régua da
-          action. */}
-      <div className="grid min-w-0 gap-5 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <MetaDoMesPanel
-          estado={estadoDaMeta}
-          periodo={metasDoMes.data?.data.periodo ?? null}
-          metas={metasDoMes.data?.data.metas ?? []}
-          podeConfigurar={canCompare}
-        />
-
-        <Card className="min-w-0">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base">
-              {t("Funil")} {selectedOwner ? t("do atendente") : ""} · {funnelTotal}{" "}
-              {funnelTotal === 1 ? t("aberto") : t("abertos")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 px-4 pb-4 sm:px-6 sm:pb-6">
-            {metrics.funnel.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("Nenhuma etapa configurada.")}</p>
-            ) : (
-              metrics.funnel.map((s) => (
-                <div key={s.stage_id} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1.5">
-                  <span className="text-sm wrap-anywhere">{s.stage_name}</span>
-                  <span className="text-right text-sm font-medium tabular-nums">{s.count}</span>
-                  <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-[width]"
-                      style={{ width: `${(s.count / maxCount) * 100}%` }}
-                    />
-                  </div>
+      <section className={CARTAO}>
+        <h2 className="text-lg font-semibold">{t("Onde estão seus clientes agora")}</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {t("Quantos clientes estão em cada etapa do funil, neste momento.")}
+        </p>
+        {etapasComGente.length === 0 ? (
+          <p className="text-base text-muted-foreground">{t("Nenhum cliente em andamento no funil.")}</p>
+        ) : (
+          <ul className="space-y-3">
+            {etapasComGente.map((s) => (
+              <li key={s.stage_id} className="space-y-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-base">{s.stage_name}</span>
+                  <span className="text-base font-semibold tabular-nums">{s.count}</span>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-accent" style={{ width: `${(s.count / maior) * 100}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {canCompare && metrics.attendants.length > 0 && (
+        <section className={CARTAO}>
+          <h2 className="mb-3 text-lg font-semibold">{t("Cada atendente")}</h2>
+          <ul className="divide-y divide-border">
+            {metrics.attendants.map((a) => (
+              <li key={a.user_id} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 py-3">
+                <span className="text-base font-medium">
+                  {attendantLabel(a, t)}
+                  {a.user_id === currentUserId ? <span className="text-muted-foreground"> {t("(você)")}</span> : null}
+                </span>
+                <span className="flex flex-wrap gap-x-5 text-sm text-muted-foreground">
+                  <span>
+                    <strong className="text-emerald-600">{a.won}</strong> {t("fechadas")}
+                  </span>
+                  <span>
+                    <strong className="text-red-600">{a.lost}</strong> {t("perdidas")}
+                  </span>
+                  <span>
+                    <strong className="text-foreground">{a.conversations_handled}</strong> {t("conversas")}
+                  </span>
+                  <span>
+                    {t("responde em")} <strong className="text-foreground">{formatarDuracao(a.avg_first_response_seconds)}</strong>
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <details className="group rounded-xl border border-border bg-card">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 text-base font-medium">
+          <Plus size={14} aria-hidden className="transition-transform group-open:rotate-45" />
+          {t("Relatórios detalhados")}
+          <span className="text-sm font-normal text-muted-foreground">
+            {t("(atrito, perdas, previsão, por número e evolução)")}
+          </span>
+        </summary>
+        <div className="flex flex-col gap-5 border-t border-border p-5">
+          <AtritoPanel podeEditarRegua={canCompare} />
+          {canCompare ? <PerdasPanel /> : null}
+          <PrevisaoPanel />
+          <CanaisPanel owner={selectedOwner} />
+          <SeriePanel />
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function Numero({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: string }) {
+  return (
+    <div className={CARTAO}>
+      <p className="text-sm text-muted-foreground">{rotulo}</p>
+      <p className={cn("mt-1 text-3xl font-semibold tabular-nums", cor)}>{valor}</p>
+    </div>
+  );
+}
+
+/** A meta do mês da EMPRESA, em vendas fechadas, editável aqui mesmo. */
+function MetaSimples({
+  carregando,
+  alvo,
+  realizado,
+  podeEditar,
+  onSalvo,
+}: {
+  carregando: boolean;
+  alvo: number | null;
+  realizado: number;
+  podeEditar: boolean;
+  onSalvo: () => void;
+}) {
+  const t = useT();
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState("");
+  const [salvando, startTransition] = useTransition();
+  const agora = new Date();
+  const periodo = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
+  const nomeDoMes = agora.toLocaleDateString("pt-BR", { month: "long" });
+
+  function salvar() {
+    const numero = Number.parseInt(valor, 10);
+    if (!Number.isInteger(numero) || numero <= 0) {
+      toast.error(t("Digite quantas vendas você quer fechar, um número maior que zero."));
+      return;
+    }
+    startTransition(async () => {
+      const r = await definirMetaMensal({ periodo, alvo: numero });
+      if (r.ok) {
+        toast.success(t("Meta salva."));
+        setEditando(false);
+        onSalvo();
+      } else {
+        toast.error(t("Não consegui salvar a meta agora. Tente de novo."));
+      }
+    });
+  }
+
+  const pct = alvo ? Math.round((realizado / alvo) * 100) : 0;
+  const falta = alvo ? Math.max(0, alvo - realizado) : 0;
+
+  return (
+    <section className={CARTAO}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">
+            {t("Meta de")} {nomeDoMes}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t("Quantas vendas a empresa quer fechar este mês.")}</p>
+        </div>
+        {podeEditar && !editando && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              setValor(alvo ? String(alvo) : "");
+              setEditando(true);
+            }}
+          >
+            <PencilSimple size={16} aria-hidden />
+            {alvo ? t("Mudar meta") : t("Definir meta")}
+          </Button>
+        )}
       </div>
 
-      <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base">
-            {canCompare ? t("Performance por atendente") : t("Sua performance")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
-          {metrics.attendants.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t("Sem atividade no período (ganhos/perdidos, conversas ou respostas).")}
+      {editando ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Input
+            type="number"
+            min={1}
+            autoFocus
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && salvar()}
+            aria-label={t("Meta de vendas do mês")}
+            className="h-11 w-40 text-base"
+            placeholder={t("Ex.: 30")}
+          />
+          <span className="text-base">{t("vendas")}</span>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? t("Salvando…") : t("Salvar")}
+          </Button>
+          <Button variant="ghost" onClick={() => setEditando(false)}>
+            {t("Cancelar")}
+          </Button>
+        </div>
+      ) : carregando ? (
+        <Skeleton className="mt-4 h-10 w-full" />
+      ) : alvo ? (
+        <div className="mt-4 space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-base">
+              <strong className="text-3xl tabular-nums">{realizado}</strong>{" "}
+              <span className="text-muted-foreground">
+                {t("de")} {alvo} {t("vendas")}
+              </span>
             </p>
-          ) : (
-            <Table className="max-md:block">
-              <TableHeader className="bg-surface-elevated max-md:hidden">
-                <TableRow>
-                  <TableHead>{t("Atendente")}</TableHead>
-                  <TableHead className="text-right">{t("Ganhos")}</TableHead>
-                  <TableHead className="text-right">{t("Perdidos")}</TableHead>
-                  <TableHead className="text-right">{t("Conversas")}</TableHead>
-                  <TableHead className="text-right">{t("1ª resposta (média / mediana)")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="max-md:block">
-                {metrics.attendants.map((a) => (
-                  <TableRow
-                    key={a.user_id}
-                    className="max-md:grid max-md:grid-cols-2 max-md:gap-x-3 max-md:gap-y-1 max-md:py-3"
-                  >
-                    <TableCell className="font-medium max-md:col-span-2 max-md:p-0 max-md:wrap-anywhere max-md:whitespace-normal">
-                      {attendantLabel(a, t)}
-                      {a.user_id === currentUserId ? (
-                        <span className="text-muted-foreground"> {t("(você)")}</span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell data-rotulo={t("Ganhos")} className={CELULA_DE_NUMERO}>
-                      {a.won}
-                    </TableCell>
-                    <TableCell data-rotulo={t("Perdidos")} className={CELULA_DE_NUMERO}>
-                      {a.lost}
-                    </TableCell>
-                    <TableCell data-rotulo={t("Conversas")} className={CELULA_DE_NUMERO}>
-                      {a.conversations_handled}
-                    </TableCell>
-                    <TableCell
-                      data-rotulo={t("1ª resposta (média / mediana)")}
-                      className={`${CELULA_DE_NUMERO} max-md:col-span-2`}
-                    >
-                      {formatarDuracao(a.avg_first_response_seconds)} ·{" "}
-                      {formatarDuracao(a.median_first_response_seconds)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Relatório "Por canal" (issue #2390): o mesmo corte de período e de
-          atendente da página, agora pelo NÚMERO — a unidade de trabalho da
-          operação (rodízio #1330). Fora do filtro de atendente a RLS é quem
-          escopa: agent vê as próprias conversas, manager+ a organização. */}
-      <CanaisPanel owner={selectedOwner} />
-      <SeriePanel />
-    </div>
+            <p className={cn("text-base font-semibold", pct >= 100 ? "text-emerald-600" : "text-foreground")}>
+              {pct >= 100 ? t("Meta batida!") : `${t("Faltam")} ${falta}`}
+            </p>
+          </div>
+          <div className="h-4 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn("h-full rounded-full transition-[width]", pct >= 100 ? "bg-emerald-500" : "bg-accent")}
+              style={{ width: `${Math.min(100, pct)}%` }}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {pct}% {t("da meta")}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-4 text-base text-muted-foreground">
+          {podeEditar
+            ? t("Você ainda não definiu a meta deste mês. Clique em \"Definir meta\".")
+            : t("A meta deste mês ainda não foi definida.")}
+        </p>
+      )}
+    </section>
   );
 }

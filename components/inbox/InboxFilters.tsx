@@ -3,6 +3,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CaretLeft, CaretRight, MagnifyingGlass } from "@/lib/ui/icons";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
@@ -26,10 +27,7 @@ import {
 import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
 import { PontoDaEtiqueta } from "@/components/tags/PontoDaEtiqueta";
 import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSessions";
-import {
-  type ModoDeEtiqueta,
-  marcadoresEscolhidos,
-} from "@/lib/inbox/marcador-da-conversa";
+import { type ModoDeEtiqueta, marcadoresEscolhidos } from "@/lib/inbox/marcador-da-conversa";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useContactTagVocabulary } from "@/hooks/contacts/useContactTagVocabulary";
 import { useConversationTagVocabulary } from "@/hooks/inbox/useConversationTags";
@@ -50,19 +48,17 @@ export type InboxTab = "unassigned" | "mine" | "all" | "closed" | "archived" | "
  * array, então as setas continuam vizinha a vizinha.
  */
 const INBOX_TABS: { value: InboxTab; label: string }[] = [
-  // "Automático", não "IA": a palavra deste ator já é contrato em quatro arquivos
-  // e no dicionário, e `handoff-por-orcamento.test.ts` usa literalmente "Voltar
-  // para a IA" como a sabotagem que deve reprovar. O rótulo não mudou quando o
-  // significado mudou (deixou de filtrar `ai_handling` e passou a perguntar a
-  // régua do motor) — e a posição sim: ela era a última fora do padrão.
-  { value: "ai", label: "Automático" },
-  { value: "unassigned", label: "Fila" },
-  { value: "mine", label: "Minhas" },
-  { value: "all", label: "Todas" },
+  // Ordem e nomes do dia a dia: abre em "Conversas abertas" (tudo que está
+  // vivo), e as visões mais estreitas vêm depois. Os valores internos não
+  // mudaram — só o rótulo — então deep-links (?filter=) seguem valendo.
+  { value: "all", label: "Conversas abertas" },
+  // "unassigned" é a antiga Fila: quem está esperando uma PESSOA responder.
+  { value: "unassigned", label: "Sem resposta" },
+  { value: "mine", label: "Atribuídas a mim" },
+  // "ai" pergunta a régua do motor: o que o robô está conduzindo agora.
+  { value: "ai", label: "Com o robô" },
   { value: "closed", label: "Fechadas" },
-  // "Arquivadas" fica ao lado de "Fechadas" porque as duas são passado — e
-  // separada dela porque são passados diferentes (#923): fechada é atendimento
-  // encerrado, arquivada é o que saiu da fila de trabalho sem ser destruído.
+  // Arquivada ≠ fechada (#923): saiu da fila de trabalho sem ser destruída.
   { value: "archived", label: "Arquivadas" },
 ];
 
@@ -112,11 +108,14 @@ export function comAba(value: InboxFiltersValue, tab: InboxTab): InboxFiltersVal
 }
 
 interface Props {
+  compacto?: boolean;
+  /** Ação ao lado do campo de busca, no modo compacto (o "+" de iniciar conversa). */
+  aoLadoDaBusca?: import("react").ReactNode;
   value: InboxFiltersValue;
   onChange: (next: InboxFiltersValue) => void;
 }
 
-export function InboxFilters({ value, onChange }: Props) {
+export function InboxFilters({ value, onChange, compacto = false, aoLadoDaBusca }: Props) {
   const t = useT();
   const [searchInput, setSearchInput] = useState(value.search);
   const tabsListRef = useRef<HTMLDivElement>(null);
@@ -139,8 +138,10 @@ export function InboxFilters({ value, onChange }: Props) {
       const selected = list.querySelector<HTMLElement>('[role="tab"][data-state="active"]');
       if (selected) {
         const selectedCenter =
-          selected.getBoundingClientRect().left - list.getBoundingClientRect().left +
-          list.scrollLeft + selected.offsetWidth / 2;
+          selected.getBoundingClientRect().left -
+          list.getBoundingClientRect().left +
+          list.scrollLeft +
+          selected.offsetWidth / 2;
         const maxScroll = Math.max(0, list.scrollWidth - list.clientWidth);
         list.scrollLeft = Math.max(0, Math.min(maxScroll, selectedCenter - list.clientWidth / 2));
       }
@@ -317,10 +318,7 @@ export function InboxFilters({ value, onChange }: Props) {
   // reabrir o menu entre a primeira e a segunda, e o `DropdownMenuCheckboxItem`
   // é o item que NÃO fecha (o `Select` de hoje fecha). A regra é do componente,
   // e por isso o gatilho é um botão com `aria-expanded` em vez de um `Select`.
-  const opcoesDoSeletor = [
-    ...vocabularioDoSeletor,
-    ...etiquetasForaDoVocabulario,
-  ];
+  const opcoesDoSeletor = [...vocabularioDoSeletor, ...etiquetasForaDoVocabulario];
   /**
    * A BUSCA DENTRO DO SELETOR (#2498) — e ela é de propósito SEM consulta.
    *
@@ -389,31 +387,32 @@ export function InboxFilters({ value, onChange }: Props) {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  return (
-    <div className="border-b border-border bg-card">
-      <div className="space-y-2 px-3 py-3">
-        <div className="relative min-w-0">
-          <MagnifyingGlass
-            size={15}
-            weight="regular"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle"
-            aria-hidden
-          />
-          {/* "última mensagem", e não "mensagem": a busca alcança apenas
+  const campoDeBusca = (
+    <div className="relative min-w-0">
+      <MagnifyingGlass
+        size={15}
+        weight="regular"
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-subtle"
+        aria-hidden
+      />
+      {/* "última mensagem", e não "mensagem": a busca alcança apenas
               `conversations.last_message_preview` — a ÚLTIMA mensagem, truncada em 200
               caracteres já na ingestão (`grep -rn 'slice(0, 200)' lib/channels/` mostra onde).
               Medido numa conversa real de 32 mensagens: buscar o que o cliente pediu na
               3ª devolve ZERO. Alcançar o histórico é projeto próprio (índice trigram +
               retenção + LGPD); até lá, a tela não promete o que o backend não faz. */}
-          <Input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={t("Buscar conversas")}
-            className="h-9 rounded-lg border-border bg-background pl-9 shadow-none focus-visible:bg-card"
-            aria-label={t("Buscar conversas")}
-            title={t("Buscar por nome, telefone ou última mensagem…")}
-          />
-        </div>
+      <Input
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        placeholder={t("Buscar conversas")}
+        className="h-9 rounded-lg border-border bg-background pl-9 shadow-none focus-visible:bg-card"
+        aria-label={t("Buscar conversas")}
+        title={t("Buscar por nome, telefone ou última mensagem…")}
+      />
+    </div>
+  );
+
+  const botoesRapidos = (
         <div className="flex flex-wrap items-center gap-2">
           {/* Botão pressionável em vez de Switch: o filtro vive na mesma linha
               da busca, e o Switch com rótulo pedia uma linha inteira só para
@@ -424,7 +423,7 @@ export function InboxFilters({ value, onChange }: Props) {
             onClick={() => onChange({ ...value, onlyUnread: !value.onlyUnread })}
             className={cn(
               "h-8 shrink-0 rounded-md border px-2.5 text-xs font-medium transition-colors",
-              "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden",
               value.onlyUnread
                 ? "border-accent/60 bg-accent-soft text-foreground"
                 : "border-border bg-card text-text-muted hover:bg-surface-elevated hover:text-foreground",
@@ -441,7 +440,7 @@ export function InboxFilters({ value, onChange }: Props) {
             onClick={() => onChange({ ...value, onlyGroups: !value.onlyGroups })}
             className={cn(
               "h-8 shrink-0 rounded-md border px-2.5 text-xs font-medium transition-colors",
-              "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden",
               value.onlyGroups
                 ? "border-accent/60 bg-accent-soft text-foreground"
                 : "border-border bg-card text-text-muted hover:bg-surface-elevated hover:text-foreground",
@@ -450,9 +449,12 @@ export function InboxFilters({ value, onChange }: Props) {
             {t("Grupos")}
           </button>
         </div>
+  );
 
-        {(showChannelSwitch || mostrarSeletorDeTag || mostrarSeletorDeAtendente) && (
-          <div className="flex gap-2 [&>button]:rounded-lg [&>button]:border-border [&>button]:bg-background [&>button]:hover:border-border-strong [&>button.border-accent]:border-accent/60 [&>button.border-accent]:bg-accent-soft">
+  const seletores = (vertical: boolean) => (
+    <>
+      {(showChannelSwitch || mostrarSeletorDeTag || mostrarSeletorDeAtendente) && (
+          <div className={cn(vertical ? "flex flex-col gap-2 [&>*]:w-full" : "flex gap-2", "[&>button]:rounded-lg [&>button]:border-border [&>button]:bg-background [&>button]:hover:border-border-strong [&>button.border-accent]:border-accent/60 [&>button.border-accent]:bg-accent-soft")}>
             {showChannelSwitch && (
               <Select
                 value={value.channel_session_id ?? "all"}
@@ -484,9 +486,11 @@ export function InboxFilters({ value, onChange }: Props) {
             )}
 
             {mostrarSeletorDeTag && (
-              <DropdownMenu onOpenChange={(aberto) => {
-                if (!aberto) setBuscaDeEtiqueta("");
-              }}>
+              <DropdownMenu
+                onOpenChange={(aberto) => {
+                  if (!aberto) setBuscaDeEtiqueta("");
+                }}
+              >
                 {/*
                   ⚠️ POR QUE ISTO DEIXOU DE SER UM `Select` (#1274).
                   O `Select` do Radix é de escolha ÚNICA e — o que mata a
@@ -504,7 +508,7 @@ export function InboxFilters({ value, onChange }: Props) {
                     type="button"
                     className={cn(
                       "h-8 min-w-0 flex-1 truncate rounded-full border border-transparent bg-surface-elevated px-3 text-left text-xs shadow-none",
-                      "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden",
                       etiquetas.length > 0 && "border-accent bg-accent-soft text-accent",
                     )}
                     aria-label={t("Filtrar por tag")}
@@ -518,7 +522,7 @@ export function InboxFilters({ value, onChange }: Props) {
                             reconhecer de relance. */}
                         <ChipDeEtiqueta tag={etiquetas[0]!} className="h-5 px-1.5 text-[11px]" />
                         {etiquetas.length > 1 && (
-                          <span className="tabular-nums text-[11px]">+{etiquetas.length - 1}</span>
+                          <span className="text-[11px] tabular-nums">+{etiquetas.length - 1}</span>
                         )}
                       </span>
                     ) : (
@@ -625,6 +629,16 @@ export function InboxFilters({ value, onChange }: Props) {
             )}
           </div>
         )}
+    </>
+  );
+
+  const painelDeFiltros = (
+    <div data-inbox-filters="" className="border-b border-border bg-card">
+      <div className="space-y-2 px-3 py-3">
+        {!compacto && campoDeBusca}
+        {botoesRapidos}
+
+        {seletores(false)}
       </div>
 
       {/* As abas quebram em linhas para caber na coluna. As setas só aparecem
@@ -640,7 +654,7 @@ export function InboxFilters({ value, onChange }: Props) {
               type="button"
               onClick={() => moveTab(-1)}
               aria-label={t("Aba anterior")}
-              className="flex w-4 shrink-0 items-center justify-center text-text-muted hover:text-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex w-4 shrink-0 items-center justify-center text-text-muted hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
             >
               <CaretLeft size={13} aria-hidden />
             </button>
@@ -648,7 +662,7 @@ export function InboxFilters({ value, onChange }: Props) {
           <TabsList
             ref={tabsListRef}
             onScroll={updateMoreTabs}
-            className="grid h-auto min-w-0 flex-1 grid-cols-3 items-stretch gap-1 rounded-lg border border-border bg-surface-elevated/65 p-1 [scrollbar-width:none]"
+            className="grid h-auto min-w-0 flex-1 [scrollbar-width:none] grid-cols-3 items-stretch gap-1 rounded-lg border border-border bg-surface-elevated/65 p-1"
           >
             {tabs.map((tab) => {
               const meta = INBOX_TABS.find((t) => t.value === tab)!;
@@ -657,11 +671,13 @@ export function InboxFilters({ value, onChange }: Props) {
                 <TabsTrigger
                   key={tab}
                   value={tab}
-                  className="min-w-0 flex-wrap content-center gap-x-1 gap-y-0 rounded-md border border-transparent px-0.5 py-1 text-center text-[11px] font-medium whitespace-normal text-text-muted hover:text-foreground focus-visible:ring-inset focus-visible:ring-offset-0 data-[state=active]:border-accent/35 data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-xs lg:min-h-8"
+                  className="min-w-0 flex-wrap content-center gap-x-1 gap-y-0 rounded-md border border-transparent px-0.5 py-1 text-center text-[11px] font-medium whitespace-normal text-text-muted hover:text-foreground focus-visible:ring-offset-0 focus-visible:ring-inset data-[state=active]:border-accent/35 data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-xs lg:min-h-8"
                 >
                   {t(meta.label)}
                   {typeof count === "number" && count > 0 && (
-                    <span className="rounded-sm bg-surface-elevated px-0.5 text-[10px] tabular-nums text-text-muted">{count}</span>
+                    <span className="rounded-sm bg-surface-elevated px-0.5 text-[10px] text-text-muted tabular-nums">
+                      {count}
+                    </span>
                   )}
                 </TabsTrigger>
               );
@@ -672,13 +688,78 @@ export function InboxFilters({ value, onChange }: Props) {
               type="button"
               onClick={() => moveTab(1)}
               aria-label={t("Próxima aba")}
-              className="flex w-4 shrink-0 items-center justify-center text-text-muted hover:text-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex w-4 shrink-0 items-center justify-center text-text-muted hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
             >
               <CaretRight size={13} aria-hidden />
             </button>
           ) : null}
         </div>
       </Tabs>
+    </div>
+  );
+  if (!compacto) return painelDeFiltros;
+  const abaAtual = INBOX_TABS.find((item) => item.value === value.tab);
+  const filtrosAtivos = !!(
+    value.onlyUnread ||
+    value.onlyGroups ||
+    value.channel_session_id ||
+    value.assigned_to ||
+    etiquetas.length
+  );
+  return (
+    <div data-inbox-compact-filters="" className="border-b border-border bg-card">
+      <div className="flex items-center gap-2 px-3 py-3">
+        <div className="min-w-0 flex-1">{campoDeBusca}</div>
+        {aoLadoDaBusca}
+      </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={t("Filtros de conversas")}
+            className="mx-4 mb-2 inline-flex items-center gap-2 border border-lime-400 bg-lime-100 px-2 py-0.5 text-xs text-slate-700"
+          >
+            {t(abaAtual?.label ?? "Conversas")}
+            {filtrosAtivos && <span aria-label={t("Filtros ativos")}>•</span>}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-[min(520px,calc(100vw-32px))] p-0"
+          aria-label={t("Filtros de conversas")}
+        >
+          {/* Duas colunas: à esquerda as VISÕES (qual lista ver), à direita os
+              FILTROS que recortam a visão escolhida. Sem contadores: o número
+              de cada visão é ruído para quem só quer escolher onde trabalhar. */}
+          <div data-inbox-filtros-em-colunas="" className="grid grid-cols-[170px_minmax(0,1fr)]">
+            <div role="tablist" aria-orientation="vertical" aria-label={t("Visões")} className="py-1">
+              {tabs.map((tab) => {
+                const meta = INBOX_TABS.find((item) => item.value === tab)!;
+                const ativa = value.tab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={ativa}
+                    onClick={() => onChange(comAba(value, tab))}
+                    className={cn(
+                      "block w-full border-b border-border px-4 py-3 text-left text-sm transition-colors hover:bg-surface-elevated",
+                      ativa ? "font-semibold text-accent" : "text-foreground",
+                    )}
+                  >
+                    {t(meta.label)}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="space-y-2 border-l border-border bg-surface-elevated/60 p-3 [&_button[aria-pressed]]:w-full [&_button[aria-pressed]]:justify-start [&_button[aria-pressed]]:text-left">
+              <div className="[&>div]:flex-col [&>div]:items-stretch">{botoesRapidos}</div>
+              {seletores(true)}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

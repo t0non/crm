@@ -19,6 +19,7 @@ import { decideMotivoDaPerda } from "@/lib/leads/motivo-da-perda";
 import type { Lead } from "@/lib/types/leads";
 import type { BoardData, Pipeline, Stage } from "@/lib/kanban/types";
 import { StageColumn } from "./StageColumn";
+import { MenuDaEtapa, NovaEtapaNoQuadro } from "./EtapasNoQuadro";
 import { LeadDossier } from "./LeadDossier";
 import { RetomarComoNovoNegocioDialog } from "./RetomarComoNovoNegocioDialog";
 import { camposDoFunil, camposPorEscopo } from "@/lib/leads/campos-do-funil";
@@ -324,9 +325,12 @@ export function KanbanBoard({
 
   if (data.stages.length === 0) {
     return (
-      <Card className="m-4 p-6 text-sm text-text-muted">
-        {t("Nenhum lead nesta pipeline ainda.")}
-      </Card>
+      <div className="m-4 flex items-start gap-3">
+        <Card className="p-6 text-sm text-text-muted">
+          {t("Este funil ainda não tem etapas.")}
+        </Card>
+        {podeRenomearEtapa && <NovaEtapaNoQuadro pipelineId={pipelineId} />}
+      </div>
     );
   }
 
@@ -383,8 +387,19 @@ export function KanbanBoard({
               onMoverPara={aoMoverPelaLista}
               podeRenomear={podeRenomearEtapa}
               onRenomear={(nome) => renameStage.mutate({ stageId: stage.id, name: nome })}
+              acoesDaEtapa={
+                podeRenomearEtapa ? (
+                  <MenuDaEtapa
+                    pipelineId={pipelineId}
+                    stage={stage}
+                    etapas={data.stages}
+                    quantosNegocios={(qc.getQueryData<BoardData>(chaveDoQuadro(pipelineId))?.leads ?? data.leads).filter((l) => l.stage_id === stage.id).length}
+                  />
+                ) : undefined
+              }
             />
           ))}
+          {podeRenomearEtapa && <NovaEtapaNoQuadro pipelineId={pipelineId} />}
         </div>
       </div>
       {leadDoDossie && (

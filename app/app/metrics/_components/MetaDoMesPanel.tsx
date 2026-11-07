@@ -25,6 +25,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mesLegivel } from "@/lib/metas/periodo";
+import { formatarMoeda } from "@/lib/propostas/moeda";
 import Link from "next/link";
 
 export interface MetaDaEmpresa {
@@ -48,17 +49,19 @@ interface Props {
   metas: readonly MetaDaEmpresa[];
   /** manager+: mostra a porta do cadastro em Configurações. */
   podeConfigurar: boolean;
+  moeda?: string;
 }
 
-export function MetaDoMesPanel({ estado, periodo, metas, podeConfigurar }: Props) {
+export function MetaDoMesPanel({ estado, periodo, metas, podeConfigurar, moeda }: Props) {
   const t = useT();
   const mes = mesLegivel(periodo);
+  const formatar = (valor: number) => moeda ? formatarMoeda(valor, moeda) : valor;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          {t("Meta do mês")}
+          {t(moeda ? "Meta de faturamento do mês" : "Meta do mês")}
           {mes ? ` · ${mes}` : ""}
         </CardTitle>
       </CardHeader>
@@ -132,13 +135,13 @@ export function MetaDoMesPanel({ estado, periodo, metas, podeConfigurar }: Props
                 <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
                   <span>
                     <span className="tabular-nums" data-meta="realizado">
-                      {m.realizado}
+                      {formatar(m.realizado)}
                     </span>{" "}
                     {t("de")}{" "}
                     <span className="tabular-nums" data-meta="alvo">
-                      {m.alvo}
+                      {formatar(m.alvo)}
                     </span>{" "}
-                    {t("Vendas ganhas")}
+                    {moeda ? null : t("Vendas ganhas")}
                   </span>
                   <span>
                     {m.atingida ? (
@@ -147,7 +150,7 @@ export function MetaDoMesPanel({ estado, periodo, metas, podeConfigurar }: Props
                       <>
                         {t("Faltam")}{" "}
                         <span className="tabular-nums" data-meta="falta">
-                          {m.falta}
+                          {formatar(m.falta)}
                         </span>{" "}
                         {t("para a meta")}
                       </>

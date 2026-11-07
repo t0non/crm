@@ -39,9 +39,8 @@ export function SectionPalettes() {
     <div className="ds-section">
       <h2 className="ds-display">Paletas</h2>
       <p className="ds-lede">
-        Cinco variantes de accent dentro do território &ldquo;soft-tech calmo&rdquo;: nenhuma satura mais
-        que ~45% (medido em HSL). Cada uma tem 11 stops do accent, 11 stops de neutro greige (não slate/zinc)
-        e versões light/dark <em>definidas separadamente</em>, não invertidas.
+        Cinco paletas sobre neutros greige, dos acentos suaves ao cobalto elétrico.
+        Cada uma tem 11 tons de destaque, 11 tons neutros e versões clara e escura.
       </p>
 
       {Object.values(PALETTES).map((p) => {

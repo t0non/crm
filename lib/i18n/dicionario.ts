@@ -17938,6 +17938,15 @@ export const DICIONARIO: Traducoes = {
   // (`{3} de {10}`), então cada conectivo é uma chave curta — mesma forma do
   // cabeçalho do card de funil logo acima de onde este painel entra.
   "Meta de vendas": { es: "Meta de ventas" },
+  "Meta de faturamento": { es: "Meta de facturación" },
+  "Defina quanto a empresa quer faturar no mês. A tela Início mostra o valor das vendas ganhas, o percentual da meta e quanto falta.": {
+    es: "Define cuánto quiere facturar la empresa este mes. La pantalla Inicio muestra el valor de las ventas ganadas, el porcentaje de la meta y cuánto falta.",
+  },
+  "Meta de faturamento do mês": { es: "Meta de facturación del mes" },
+  "Confira o mês e o valor da meta.": { es: "Comprueba el mes y el importe de la meta." },
+  "A meta de faturamento soma o valor das vendas ganhas no mês na moeda da empresa. A meta por quantidade conta os negócios ganhos.": {
+    es: "La meta de facturación suma el importe de las ventas ganadas del mes en la moneda de la empresa. La meta por cantidad cuenta los negocios ganados.",
+  },
   "Meta do mês": { es: "Meta del mes" },
   "Vendas ganhas": { es: "Ventas ganadas" },
   "da meta": { es: "de la meta" },

@@ -12,9 +12,8 @@
  * ─── O realizado é "negócio GANHO fechado dentro da janela" ─────────────────
  * `status = 'won'` e `closed_at` em `[from, to)` — o par que a tela chama de
  * venda. Não é `created_at` (o negócio pode ter nascido em julho e fechado em
- * setembro; a venda é de setembro) e não é `value_cents` (somar VALOR é a fatia
- * 2, declarada fora). A leitura é com o client de sessão, então a RLS escopa a
- * organização por si.
+ * setembro; a venda é de setembro). O indicador de faturamento soma
+ * `value_cents` na moeda da organização. A leitura usa o client de sessão.
  *
  * ─── Contagem por `count` exato, não por linhas ─────────────────────────────
  * `.select("id", { count: "exact", head: true })`: o PostgREST conta no banco e
@@ -43,12 +42,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-/** O único indicador desta fatia: quantidade de vendas ganhas. */
-const INDICADOR_DA_FATIA = "vendas_ganhas";
-
 const querySchema = z.object({
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
+  indicador: z.enum(["vendas_ganhas", "valor_vendas_ganhas"]).default("vendas_ganhas"),
 });
 
 interface MetaCrua {
@@ -90,6 +87,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const parsed = querySchema.safeParse({
     from: url.searchParams.get("from") ?? undefined,
     to: url.searchParams.get("to") ?? undefined,
+    indicador: url.searchParams.get("indicador") ?? undefined,
   });
   if (!parsed.success) {
     return fail("validation_failed", t("Query inválida."), 422, {
@@ -117,6 +115,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const supabase = await createClient();
   const orgId = activeOrg.orgId;
+  const { indicador } = parsed.data;
 
   // As metas do MÊS (o da janela) na organização ativa. `pipeline_id is null` é
   // a meta da empresa e vem primeiro; metas por funil (fatia seguinte) também
@@ -127,7 +126,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .select("id, periodo, indicador, pipeline_id, alvo")
     .eq("organization_id", orgId)
     .eq("periodo", periodo)
-    .eq("indicador", INDICADOR_DA_FATIA);
+    .eq("indicador", indicador);
   if (erroMetas) {
     return fail("internal_error", `crm_metas: ${erroMetas.message}`, 500, { requestId });
   }
@@ -159,18 +158,32 @@ export async function GET(req: NextRequest): Promise<Response> {
       );
     }
 
+    const monetaria = indicador === "valor_vendas_ganhas";
     let consulta = supabase
       .from("crm_leads")
-      .select("id", { count: "exact", head: true })
+      .select(monetaria ? "value_cents" : "id", monetaria ? undefined : { count: "exact", head: true })
       .eq("organization_id", orgId)
       .eq("status", "won")
       .gte("closed_at", de)
       .lt("closed_at", ate);
     if (meta.pipeline_id) consulta = consulta.eq("pipeline_id", meta.pipeline_id);
-
-    const { count, error } = await consulta;
-    if (error) return fail("internal_error", `crm_leads: ${error.message}`, 500, { requestId });
-    const realizado = count ?? 0;
+    let realizado = 0;
+    if (monetaria) {
+      const moeda = activeOrg.currency ?? "BRL";
+      consulta = consulta.eq("currency", moeda).order("id");
+      const tamanho = 500;
+      for (let inicio = 0; ; inicio += tamanho) {
+        const { data, error } = await consulta.range(inicio, inicio + tamanho - 1);
+        if (error) return fail("internal_error", `crm_leads: ${error.message}`, 500, { requestId });
+        const vendas = (data ?? []) as unknown as { value_cents: number | null }[];
+        realizado += vendas.reduce((soma, venda) => soma + (venda.value_cents ?? 0), 0);
+        if (vendas.length < tamanho) break;
+      }
+    } else {
+      const { count, error } = await consulta;
+      if (error) return fail("internal_error", `crm_leads: ${error.message}`, 500, { requestId });
+      realizado = count ?? 0;
+    }
 
     saida.push({
       id: meta.id,
@@ -192,7 +205,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     {
       window: { from: de, to: ate },
       periodo,
-      indicador: INDICADOR_DA_FATIA,
+      indicador,
       metas: saida,
       motivo: semMeta ? "sem_meta" : null,
       explicacao: semMeta

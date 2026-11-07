@@ -18,7 +18,7 @@ const ACOES = [
   { href: "/app/connections", title: "Conectar o WhatsApp", hint: "Confira a conexão e abra o QR Code quando necessário." },
 ] as const;
 
-export function GuiaRapido() {
+export function GuiaRapido({ linha = false }: { linha?: boolean } = {}) {
   const [aberto, setAberto] = useState(false);
   const { user, activeOrg } = useAuth();
   const t = useT();
@@ -35,12 +35,20 @@ export function GuiaRapido() {
   return (
     <Popover open={aberto} onOpenChange={setAberto}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 max-xl:w-11 max-xl:px-0" aria-label={t("Guia rápido")} title={t("Guia rápido")}>
-          <Question weight="regular" aria-hidden />
-          <span className="hidden xl:inline">{t("Guia rápido")}</span>
-        </Button>
+        {linha ? (
+          <button type="button" data-linha-do-rodape="" className="flex w-full items-center gap-2.5 rounded-lg px-3 py-1 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Question size={18} weight="regular" aria-hidden />
+            <span className="flex-1">{t("Ajuda")}</span>
+            <ArrowRight size={14} aria-hidden />
+          </button>
+        ) : (
+          <Button variant="ghost" size="sm" className="gap-2 max-xl:w-11 max-xl:px-0" aria-label={t("Guia rápido")} title={t("Guia rápido")}>
+            <Question weight="regular" aria-hidden />
+            <span className="hidden xl:inline">{t("Guia rápido")}</span>
+          </Button>
+        )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] space-y-2 p-3">
+      <PopoverContent align={linha ? "start" : "end"} side={linha ? "right" : undefined} className="w-[min(22rem,calc(100vw-2rem))] space-y-2 p-3">
         <h2 className="px-2 pt-1 text-sm font-semibold">{t("O que você quer fazer?")}</h2>
         <ul className="space-y-1">
           {acoes.map(({ href, title, hint }) => (
