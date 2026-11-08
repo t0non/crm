@@ -20,6 +20,7 @@ import { abrirNoNavegador } from "@/lib/cobranca/navegar";
 import type { PlanoParaTroca } from "@/lib/cobranca/painel";
 import type { EstadoDaAssinatura, ProvedorDeCobranca } from "@/lib/cobranca/vocabulario";
 import { useIdioma } from "@/lib/i18n/IdiomaProvider";
+import { ArrowRight, Check } from "@/lib/ui/icons";
 
 export interface PropsDasAcoes {
   estado: EstadoDaAssinatura;
@@ -38,6 +39,8 @@ export interface PropsDasAcoes {
   voltouDoCheckout: boolean;
   /** No hub de conta suspensa: pagar e voltar ao sistema é o único assunto. */
   noHub: boolean;
+  /** Tela de ativar a conta nova: campo e botão grandes, um embaixo do outro. */
+  destaque?: boolean;
   /** IANA da empresa; o mesmo dia do painel. Ausente, o padrão. */
   fuso?: string | null;
   /** Quem cobra: o provedor da assinatura; sem ele, o da instalação (D-8). */
@@ -86,6 +89,11 @@ export function AcoesDaAssinatura(p: PropsDasAcoes) {
   const linkDoAjuste = linkDePagamentoSeguro(p.trocaPagamentoUrl);
   const [ocupado, setOcupado] = useState(false);
   const [recado, setRecado] = useState<string | null>(null);
+  // Tela de ativar conta: o pagamento caiu. Mostra a comemoração antes de abrir o sistema.
+  const [confirmado, setConfirmado] = useState(false);
+  // Tela de ativar conta: o Pix da cobrança aberta, para pagar sem sair da página.
+  const [pix, setPix] = useState<{ imagem: string; copia_e_cola: string } | null>(null);
+  const [copiado, setCopiado] = useState(false);
   const [trocando, setTrocando] = useState(false);
   const [novo, setNovo] = useState(p.planosParaTroca[0]?.id ?? "");
   const [cancelando, setCancelando] = useState(false);
@@ -164,6 +172,11 @@ export function AcoesDaAssinatura(p: PropsDasAcoes) {
     const { data: r } = await apiClient.post<{ data: Leitura }>(`${BASE}/sincronizar`, {});
     if (!montado.current) return true;
     if (p.noHub && r.org_operante) {
+      if (p.destaque) {
+        setConfirmado(true);
+        document.documentElement.dataset.pagamento = "confirmado";
+        await new Promise((pronto) => setTimeout(pronto, 2800));
+      }
       router.push("/app");
       return true;
     }
@@ -209,6 +222,80 @@ export function AcoesDaAssinatura(p: PropsDasAcoes) {
       abrirNoNavegador(r.url);
     });
 
+  // Tela de ativar conta: confere o pagamento sozinho (a cada 10 s e ao voltar para a aba),
+  // sem botão "Já paguei". Para depois de 20 minutos; recarregar a página recomeça.
+  const conferindo = useRef(false);
+  useEffect(() => {
+    if (!p.destaque || !p.noHub || !aguardandoAsaas || confirmado) return;
+    const inicio = Date.now();
+    const conferir = async () => {
+      if (conferindo.current || document.visibilityState !== "visible" || Date.now() - inicio > 20 * 60_000) return;
+      conferindo.current = true;
+      try {
+        const { data: r } = await apiClient.post<{ data: Leitura }>(`${BASE}/sincronizar`, {});
+        if (montado.current && r.org_operante) {
+          setConfirmado(true);
+          document.documentElement.dataset.pagamento = "confirmado";
+          await new Promise((pronto) => setTimeout(pronto, 2800));
+          router.push("/app");
+        }
+      } catch {
+        // Silencioso: a próxima volta tenta de novo.
+      } finally {
+        conferindo.current = false;
+      }
+    };
+    const relogio = window.setInterval(() => void conferir(), 10_000);
+    const aoVoltar = () => void conferir();
+    document.addEventListener("visibilitychange", aoVoltar);
+    window.addEventListener("focus", aoVoltar);
+    return () => {
+      window.clearInterval(relogio);
+      document.removeEventListener("visibilitychange", aoVoltar);
+      window.removeEventListener("focus", aoVoltar);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.destaque, p.noHub, aguardandoAsaas, confirmado]);
+
+  // Busca o QR Code assim que existe cobrança aberta. Falhou? Fica o botão da fatura do Asaas.
+  const pediuPix = useRef(false);
+  useEffect(() => {
+    if (!p.destaque || p.provedor !== "asaas" || pix || pediuPix.current || (fatura === null && link === null)) return;
+    pediuPix.current = true;
+    void apiClient
+      .get<{ data: { imagem: string; copia_e_cola: string } }>(`${BASE}/pix`)
+      .then(({ data }) => {
+        if (montado.current && data.imagem.startsWith("data:image/png;base64,")) setPix(data);
+      })
+      .catch(() => {
+        pediuPix.current = false;
+      });
+  }, [p.destaque, p.provedor, pix, fatura, link]);
+
+  async function copiarPix() {
+    if (!pix) return;
+    try {
+      await navigator.clipboard.writeText(pix.copia_e_cola);
+      setCopiado(true);
+      window.setTimeout(() => montado.current && setCopiado(false), 2500);
+    } catch {
+      setRecado(t("Não deu para copiar. Selecione o código e copie manualmente."));
+    }
+  }
+
+  if (confirmado) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center" role="status">
+        <span className="ok-circulo relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/40">
+          <span aria-hidden className="ok-onda absolute inset-0 rounded-full bg-emerald-400" />
+          <Check size={40} weight="bold" className="relative" aria-hidden />
+        </span>
+        <p className="ok-texto text-2xl font-bold tracking-tight">{t("Pagamento confirmado!")}</p>
+        <p className="ok-texto text-base text-muted-foreground">{t("Sua conta está ativa. Abrindo o sistema…")}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-xl space-y-3">
       {soPeloPortal && (
@@ -221,7 +308,9 @@ export function AcoesDaAssinatura(p: PropsDasAcoes) {
           <Label htmlFor="documento-de-quem-paga">{t("CPF ou CNPJ de quem paga")}</Label>
           <Input
             id="documento-de-quem-paga"
-            className="max-w-xs"
+            className={p.destaque ? "h-12 text-base" : "max-w-xs"}
+            inputMode={p.destaque ? "numeric" : undefined}
+            placeholder={p.destaque ? "000.000.000-00" : undefined}
             autoComplete="off"
             value={documento}
             onChange={(e) => setDocumento(e.target.value)}
@@ -231,33 +320,60 @@ export function AcoesDaAssinatura(p: PropsDasAcoes) {
           <p id="documento-de-quem-paga-ajuda" className="text-xs text-muted-foreground">
             {documentoErrado
               ? t("Confira o CPF ou CNPJ: os dígitos não batem.")
-              : t("Vai direto para o Asaas, que emite a cobrança neste documento; não fica guardado neste sistema. Confira antes de assinar: para trocar depois, fale com quem administra o sistema.")}
+              : p.destaque
+                ? t("Usado só para emitir a cobrança no Asaas. Não fica guardado aqui.")
+                : t("Vai direto para o Asaas, que emite a cobrança neste documento; não fica guardado neste sistema. Confira antes de assinar: para trocar depois, fale com quem administra o sistema.")}
           </p>
         </div>
       )}
-      {fatura && (
+      {p.destaque && pix && (
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card/80 p-5 text-center shadow-sm backdrop-blur">
+          <p className="text-base font-semibold">{t("Pague com Pix pelo app do seu banco")}</p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- data: URI do provedor, não há o que otimizar */}
+          <img src={pix.imagem} alt={t("QR Code do Pix")} width={208} height={208} className="h-52 w-52 rounded-xl bg-white p-2" />
+          <p className="text-sm text-muted-foreground">{t("Abra o app do banco, escolha Pix › Ler QR Code. Ou copie o código:")}</p>
+          <Button type="button" variant="outline" className="h-11 w-full text-base" onClick={() => void copiarPix()}>
+            {copiado ? t("Código copiado!") : t("Copiar código Pix")}
+          </Button>
+          {(fatura ?? link) && (
+            <a href={(fatura ?? link)!} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+              {t("Prefiro pagar com cartão ou boleto")}
+            </a>
+          )}
+        </div>
+      )}
+      {fatura && !(p.destaque && pix) && (
         <div className="space-y-2 rounded-md border p-3 text-sm">
           <p>{t("Sua fatura está pronta. Pague por Pix, boleto ou cartão.")}</p>
-          <Button asChild>
+          <Button asChild className={p.destaque ? "botao-brilho botao-premium w-full text-base" : undefined}>
             <a href={fatura} target="_blank" rel="noopener noreferrer">
               {t("Abrir a fatura")}
             </a>
           </Button>
         </div>
       )}
-      {p.provedor === "asaas" && (fatura !== null || link !== null) && (
+      {p.destaque && aguardandoAsaas && (fatura !== null || link !== null) && (
+        <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          {t("Assim que o pagamento cair, sua conta abre sozinha.")}
+        </p>
+      )}
+      {!p.destaque && p.provedor === "asaas" && (fatura !== null || link !== null) && (
         <p className="text-xs text-muted-foreground">
           {t("A fatura abre no Asaas, numa nova aba. Depois de pagar, volte aqui e clique em Já paguei: Pix confirma em minutos; boleto, em até 1 dia útil.")}
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className={p.destaque ? "flex flex-col gap-2 pt-1" : "flex flex-wrap gap-2"}>
         {soPeloPortal && (
           <Button disabled={ocupado} onClick={gerenciar}>
             {t("Gerenciar pagamento")}
           </Button>
         )}
-        {link && (
-          <Button asChild>
+        {link && !(p.destaque && pix) && (
+          <Button asChild className={p.destaque ? "botao-brilho botao-premium w-full text-base" : undefined}>
             <a href={link} target="_blank" rel="noopener noreferrer">
               {/* Asaas em dia: o link é a cobrança seguinte, gerada até 40 dias antes. "Pagar agora" ao lado de "Em dia" leria como dívida. */}
               {p.provedor === "asaas" && p.estado === "ativa" ? t("Adiantar a próxima mensalidade") : t("Pagar agora")}
@@ -269,12 +385,13 @@ export function AcoesDaAssinatura(p: PropsDasAcoes) {
             <a href={linkDoAjuste} target="_blank" rel="noopener noreferrer">{t("Pagar ajuste do upgrade")}</a>
           </Button>
         )}
-        {podeAssinar && (p.paginaDoPlano ? (
-          <Button asChild><Link href={p.paginaDoPlano}>{t("Assinar")}</Link></Button>
+        {podeAssinar && !(p.destaque && (fatura || link)) && (p.paginaDoPlano ? (
+          <Button asChild className={p.destaque ? "botao-brilho botao-premium w-full text-base" : undefined}><Link href={p.paginaDoPlano}>{p.destaque ? <>{t("Começar agora")}<ArrowRight size={18} weight="bold" className="seta" aria-hidden /></> : t("Assinar")}</Link></Button>
         ) : (
           <Button
             disabled={ocupado || (pedeDocumento && documentoNormalizado === null)}
             variant={link ? "outline" : "default"}
+            className={p.destaque ? "botao-brilho botao-premium w-full text-base" : undefined}
             onClick={() =>
               void agir(async () => {
                 const corpo = {
@@ -289,12 +406,13 @@ export function AcoesDaAssinatura(p: PropsDasAcoes) {
               })
             }
           >
-            {t(p.estado === "cancelada" ? "Assinar de novo" : "Assinar")}
+            {p.destaque ? <>{t("Começar agora")}<ArrowRight size={18} weight="bold" className="seta" aria-hidden /></> : t(p.estado === "cancelada" ? "Assinar de novo" : "Assinar")}
           </Button>
         ))}
-        {podeDizerQuePagou && (
+        {podeDizerQuePagou && !p.destaque && (
           <Button
-            variant="outline"
+            variant={p.destaque ? "ghost" : "outline"}
+            className={p.destaque ? "w-full text-muted-foreground" : undefined}
             disabled={ocupado}
             onClick={() =>
               void agir(async () => {

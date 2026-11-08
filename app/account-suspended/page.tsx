@@ -17,6 +17,7 @@ import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { moduloLigado } from "@/lib/instalacao/modulos";
 import { ehOperante, tipoDaSuspensao } from "@/lib/organizacao/operante";
+import { Lock } from "@/lib/ui/icons";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +103,152 @@ export default async function AccountSuspendedPage({
   // ativar". Quem acabou de assinar não pode ler que foi punido.
   const primeiroPagamento =
     mostra === "pagamento" && painel?.assinatura != null && !painel.assinatura.periodo_pago_desde;
+
+  if (primeiroPagamento && painel?.assinatura) {
+    const a = painel.assinatura;
+    // Só o primeiro nome, como se fala com alguém: "Ei, Maria, falta pouco!".
+    const primeiroNome = (user.full_name ?? "").trim().split(/\s+/)[0] ?? "";
+    const precoCents = a.preco_contratado_cents ?? painel.plano?.preco_cents ?? null;
+    const reais = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const anual = painel.plano?.intervalo === "ano";
+    // O valor do mês dividido pelos dias, arredondado para cima: R$ 147 → "Só R$ 4,90 por dia".
+    const porDia = precoCents === null ? null : reais(Math.ceil(precoCents / (anual ? 365 : 30)));
+    return (
+      <IdiomaProvider locale={idioma}>
+        <style>{`
+          @keyframes coral-desliza { 0% { background-position:0% 50%; } 100% { background-position:100% 50%; } }
+          @keyframes coral-respira { 0%,100% { transform:scaleY(1); } 50% { transform:scaleY(1.08); } }
+          [data-aurora] { transition: opacity 1.2s ease; -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.8) 22%, rgba(0,0,0,.45) 48%, rgba(0,0,0,.15) 72%, transparent 100%); mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.8) 22%, rgba(0,0,0,.45) 48%, rgba(0,0,0,.15) 72%, transparent 100%); }
+          [data-aurora] > span { position:absolute; inset:0; transform-origin:bottom; filter: blur(80px) saturate(.9); will-change: background-position, transform; }
+          [data-neon-verde] { opacity:0; transition: opacity 1.2s ease; filter: blur(70px); }
+          html[data-pagamento="confirmado"] [data-aurora] { opacity:0; }
+          html[data-pagamento="confirmado"] [data-neon-verde] { opacity:1; }
+          html[data-pagamento="confirmado"] [data-neon-verde] > div { animation: verde-respira 1.6s ease-in-out infinite; }
+          @keyframes verde-respira { 0%,100% { opacity:.7; transform:translateX(-50%) scale(1); } 50% { opacity:1; transform:translateX(-50%) scale(1.1); } }
+          @keyframes ok-pop { 0% { transform:scale(0); } 60% { transform:scale(1.15); } 100% { transform:scale(1); } }
+          @keyframes ok-onda { 0% { transform:scale(1); opacity:.6; } 100% { transform:scale(2.2); opacity:0; } }
+          @keyframes ok-sobe { 0% { opacity:0; transform:translateY(8px); } 100% { opacity:1; transform:none; } }
+          @keyframes botao-brilho { 0% { transform:translateX(-120%); } 55%,100% { transform:translateX(120%); } }
+          .botao-brilho { position:relative; overflow:hidden; isolation:isolate; }
+          .botao-brilho::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.45) 50%,transparent 75%); animation: botao-brilho 3.2s ease-in-out infinite; }
+          .botao-premium { height:3.25rem; border-radius:.875rem; border:0; color:#fff; font-weight:600; letter-spacing:-.01em;
+            background:linear-gradient(135deg,#3b82f6 0%,#2563eb 45%,#4f46e5 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(15,23,42,.15), 0 10px 24px -10px rgba(37,99,235,.65);
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+          .botao-premium:hover { transform: translateY(-1px); filter: brightness(1.05);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 4px rgba(15,23,42,.15), 0 16px 32px -12px rgba(79,70,229,.7); }
+          .botao-premium:active { transform: translateY(0) scale(.99); }
+          .botao-premium:focus-visible { outline: 3px solid rgba(37,99,235,.35); outline-offset: 3px; }
+          .botao-premium .seta { transition: transform .18s ease; }
+          .botao-premium:hover .seta { transform: translateX(4px); }
+          .ok-circulo { animation: ok-pop .6s cubic-bezier(.2,.9,.3,1.3) both; }
+          .ok-onda { animation: ok-onda 1.4s ease-out .3s infinite; }
+          .ok-texto { animation: ok-sobe .5s ease-out .35s both; }
+          @media (prefers-reduced-motion: reduce) { [data-aurora] > span, .botao-brilho::after, .ok-circulo, .ok-onda, .ok-texto, [data-neon-verde] > div { animation:none !important; } }
+        `}</style>
+        <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-10">
+          {/* Faixa de cor no pé da página: azul, roxo e verde deslizando juntos, em duas camadas com
+              ritmos diferentes (a mistura nunca se repete). Quando o pagamento cai, tudo vira verde. */}
+          <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 h-[60vh] overflow-hidden">
+            <div data-aurora="" className="absolute -inset-x-20 -bottom-10 h-[42vh]">
+              <span
+                style={{
+                  background: "linear-gradient(90deg,#2563eb,#8b5cf6,#10b981,#38bdf8,#7c3aed,#2563eb,#14b8a6,#2563eb)",
+                  backgroundSize: "400% 100%",
+                  animation: "coral-desliza 16s ease-in-out infinite alternate, coral-respira 7s ease-in-out infinite",
+                  opacity: 0.42,
+                }}
+              />
+              <span
+                style={{
+                  background: "linear-gradient(90deg,#10b981,#2563eb,#a855f7,#22d3ee,#2563eb,#10b981)",
+                  backgroundSize: "300% 100%",
+                  animation: "coral-desliza 11s ease-in-out infinite alternate-reverse, coral-respira 9s ease-in-out infinite reverse",
+                  opacity: 0.28,
+                }}
+              />
+            </div>
+            <div data-neon-verde="" className="absolute inset-0">
+              <div style={{ transform: "translateX(-50%)" }} className="absolute -bottom-40 left-1/2 h-[30rem] w-[140%] rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,.85),rgba(16,185,129,.3)_45%,transparent_70%)]" />
+            </div>
+          </div>
+
+          <div className="absolute inset-x-0 top-0 z-10 mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-8">
+              <p className="truncate text-sm text-muted-foreground">{ativa.name}</p>
+              <form action={signOut}>
+                <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground">
+                  {t("Sair")}
+                </Button>
+              </form>
+          </div>
+
+          <div className="relative z-10 w-full max-w-md">
+            <div className="space-y-8">
+              <header className="space-y-2 text-center">
+                <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+                  {primeiroNome ? `${t("Ei,")} ${primeiroNome}, ${t("falta pouco!")}` : t("Falta pouco!")}
+                </h1>
+                <p className="mx-auto max-w-sm text-balance text-lg font-light text-blue-600 dark:text-blue-400">
+                  {t("Você tomou a decisão certa.")}
+                </p>
+              </header>
+
+              {precoCents !== null && (
+                <div className="space-y-1 text-center">
+                  <p className="text-sm text-muted-foreground">{t("Tudo liberado por")}</p>
+                  <p className="flex items-baseline justify-center gap-1">
+                    <span className="text-5xl font-bold tracking-tight">{reais(precoCents)}</span>
+                    <span className="text-base text-muted-foreground">{anual ? t("/ano") : t("/mês")}</span>
+                  </p>
+                  {porDia && (
+                    <p className="text-sm text-muted-foreground">
+                      {t("Só")}{" "}
+                      <strong className="font-semibold text-emerald-600 dark:text-emerald-400">{porDia}</strong>{" "}
+                      {t("por dia")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <AcoesDaAssinatura
+                estado={a.estado}
+                temProvedor={a.provedor !== null}
+                assinaturasVivas={a.assinaturas_vivas}
+                linkDePagamento={a.link_de_pagamento}
+                cancelaNoFim={a.cancela_no_fim}
+                planosParaTroca={[]}
+                planoAtual={painel.plano ? { id: painel.plano.id, nome: painel.plano.nome, preco_cents: painel.plano.preco_cents, intervalo: painel.plano.intervalo, max_assentos: painel.plano.max_assentos, max_canais: painel.plano.max_canais, teto_ia_usd_cents: painel.plano.teto_ia_usd_cents } : null}
+                periodoPagoDesde={a.periodo_pago_desde}
+                proximoVencimento={a.proximo_vencimento}
+                trocaPagamentoUrl={a.troca_pagamento_url}
+                trocaStatus={a.troca_status}
+                instanteCalculo={new Date().toISOString()}
+                provedor={painel.checkout.provedor}
+                documentoDoCadastro={painel.checkout.documentoDoCadastro}
+                paginaDoPlano={painel.checkout.paginaDoPlano}
+                fuso={painel.fuso}
+                voltouDoCheckout={voltou === "1"}
+                noHub
+                destaque
+              />
+
+              <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <Lock size={13} className="shrink-0" aria-hidden />
+                {t("Pagamento seguro pelo")}
+                <img src="/marcas/asaas.png" alt="Asaas" width={48} height={15} className="h-[15px] w-auto" />
+              </p>
+            </div>
+
+            {outras.length > 0 && (
+              <div className="flex justify-center">
+                <OutrasOrganizacoes outras={outras} />
+              </div>
+            )}
+          </div>
+        </main>
+      </IdiomaProvider>
+    );
+  }
 
   return (
     <IdiomaProvider locale={idioma}>
