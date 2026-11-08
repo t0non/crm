@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SeletorDeIdioma } from "@/components/shell/SeletorDeIdioma";
 import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
@@ -34,7 +33,6 @@ export function UserMenu({ linha = false }: { linha?: boolean } = {}) {
   return (
     <div className={linha ? "w-full" : "flex items-center gap-2"}>
       {!linha && <SeletorDeIdioma />}
-      {!linha && <ThemeToggle />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           {linha ? (
@@ -73,12 +71,6 @@ export function UserMenu({ linha = false }: { linha?: boolean } = {}) {
           <DropdownMenuItem asChild>
             <Link href="/app/settings/profile">{t("Meu perfil")}</Link>
           </DropdownMenuItem>
-          {linha && (
-            <div className="flex items-center justify-between px-2 py-1.5 text-sm">
-              <span>{t("Tema")}</span>
-              <ThemeToggle />
-            </div>
-          )}
           <DropdownMenuSeparator />
           {/*
             A PORTA DO MODO ADMINISTRADOR.

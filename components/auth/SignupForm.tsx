@@ -182,12 +182,16 @@ export function SignupForm({
 
   if (sentTo) {
     return (
-      <div className="space-y-2 rounded-md border bg-muted/40 px-4 py-6 text-center" role="status">
-        <p className="text-sm font-medium">{t("Confirme seu e-mail")}</p>
-        <p className="text-sm text-muted-foreground">
-          {t("Enviamos um link de confirmação para")} <strong>{sentTo}</strong>.{" "}
-          {t("Abra o e-mail e clique no link para ativar sua conta.")}
-        </p>
+      <div data-cadastro-enviado="" className="space-y-4 py-4 text-center" role="status">
+        <style>{`body:has([data-cadastro-enviado]) [data-some-apos-cadastro] { display: none; }`}</style>
+        <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">{t("Agora, só falta confirmar no e-mail")}</h1>
+        <div className="space-y-1">
+          <p className="text-base font-medium">{t("Confirme seu e-mail")}</p>
+          <p className="text-balance text-base text-muted-foreground">
+            {t("Enviamos um link de confirmação para")} <strong className="text-foreground">{sentTo}</strong>.{" "}
+            {t("Abra o e-mail e clique no link para ativar sua conta.")}
+          </p>
+        </div>
       </div>
     );
   }
@@ -226,20 +230,9 @@ export function SignupForm({
           )}
         </div>
       )}
-      {contratar && <input type="hidden" {...register("cobranca_plan_id")} />}
-      {!convite && !contratar && planos.length > 0 && (
-        <div className="space-y-1.5">
-          <Label htmlFor="cobranca_plan_id">{t("Plano")}</Label>
-          <select id="cobranca_plan_id" className="h-10 w-full rounded-md border bg-background px-3 text-sm" {...register("cobranca_plan_id")}>
-            {planos.map((plano) => (
-              <option key={plano.id} value={plano.id}>
-                {plano.nome} — {new Intl.NumberFormat(undefined, { style: "currency", currency: "BRL" }).format(plano.preco_cents / 100)} / {plano.intervalo === "ano" ? t("ano") : t("mês")}
-                {plano.trial_dias > 0 ? ` · ${plano.trial_dias} ${t("dias de teste")}` : ` · ${t("sem período de teste")}`}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {/* Primeiro a pessoa cria a conta; o plano (o padrão do cadastro) aparece
+          depois, na tela de ativar a conta, com o preço e o pagamento. */}
+      {!convite && (contratar || planos.length > 0) && <input type="hidden" {...register("cobranca_plan_id")} />}
       <div className="space-y-1.5">
         <Label htmlFor="email">{t("Email")}</Label>
         <Input
