@@ -22,7 +22,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Conta suspensa",
+  title: "Ativar conta",
 };
 
 const PEDIDO = z.uuid();
@@ -98,15 +98,25 @@ export default async function AccountSuspendedPage({
     .filter((o) => o.organization_id !== ativa.orgId && ehOperante(statusDe.get(o.organization_id)))
     .map((o) => ({ id: o.organization_id, nome: o.organization_name }));
   const pedidoAberto = administra ? pedidoValido : undefined;
+  // CONTA NOVA, AINDA SEM O PRIMEIRO PAGAMENTO: não é "suspensa", é "falta
+  // ativar". Quem acabou de assinar não pode ler que foi punido.
+  const primeiroPagamento =
+    mostra === "pagamento" && painel?.assinatura != null && !painel.assinatura.periodo_pago_desde;
 
   return (
     <IdiomaProvider locale={idioma}>
       <main className="flex min-h-screen flex-col items-center gap-8 p-4 sm:p-8">
         <Card className="w-full max-w-md space-y-4 p-8 text-center">
-          <h1 className="text-2xl font-semibold">{t("Conta suspensa")}</h1>
+          <h1 className="text-2xl font-semibold">
+            {primeiroPagamento ? t("Falta só ativar sua conta") : t("Conta suspensa")}
+          </h1>
           {/* Quem participa de várias empresas precisa saber QUAL parou. Dado, não interface: sem t(). */}
           <p className="text-base font-medium">{ativa.name}</p>
-          {mostra === "pagamento" ? (
+          {primeiroPagamento ? (
+            <p className="text-sm text-muted-foreground">
+              {t("Sua conta está criada. Conclua o pagamento abaixo e o sistema é liberado na hora, assim que o pagamento for confirmado.")}
+            </p>
+          ) : mostra === "pagamento" ? (
             <p className="text-sm text-muted-foreground">
               {t("A conta foi suspensa por falta de pagamento. Assim que o pagamento for confirmado, tudo volta a funcionar na hora.")}
             </p>
@@ -168,7 +178,7 @@ export default async function AccountSuspendedPage({
             />
           </section>
         )}
-        {administra && (
+        {administra && !primeiroPagamento && (
           <section aria-labelledby="lgpd-no-hub" className="w-full max-w-5xl space-y-4">
             <header className="space-y-1">
               <h2 id="lgpd-no-hub" className="text-lg font-semibold">

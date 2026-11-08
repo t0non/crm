@@ -90,23 +90,68 @@ export function RecoverOrganizationForm({
         />
       </div>
       {planos.length > 0 && (
-        <div className="space-y-1.5">
-          <Label htmlFor="recovery-plano">{t("Plano")}</Label>
-          <select
-            id="recovery-plano"
-            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            value={plano}
-            onChange={(event) => setPlano(event.target.value)}
-            disabled={isPending}
-          >
-            {planos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome} — {new Intl.NumberFormat(undefined, { style: "currency", currency: "BRL" }).format(p.preco_cents / 100)} / {p.intervalo === "ano" ? t("ano") : t("mês")}
-                {p.trial_dias > 0 ? ` · ${p.trial_dias} ${t("dias de teste")}` : ` · ${t("sem período de teste")}`}
-              </option>
-            ))}
-          </select>
-        </div>
+        <fieldset className="space-y-3">
+          <legend className="mb-1 text-sm font-medium">{t("Seu plano")}</legend>
+          {planos.map((p) => {
+            const ativo = plano === p.id;
+            const preco = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.preco_cents / 100);
+            return (
+              <label
+                key={p.id}
+                className={
+                  "block cursor-pointer rounded-xl border-2 p-5 transition-colors " +
+                  (ativo ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/50")
+                }
+              >
+                <input
+                  type="radio"
+                  name="plano"
+                  value={p.id}
+                  checked={ativo}
+                  onChange={() => setPlano(p.id)}
+                  disabled={isPending}
+                  className="sr-only"
+                />
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold">{p.nome}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {p.trial_dias > 0
+                        ? `${p.trial_dias} ${t("dias grátis para testar")}`
+                        : t("Acesso completo a partir de hoje")}
+                    </p>
+                  </div>
+                  <span
+                    aria-hidden
+                    className={
+                      "mt-1 flex size-5 shrink-0 items-center justify-center rounded-full border-2 " +
+                      (ativo ? "border-primary bg-primary" : "border-muted-foreground/40")
+                    }
+                  >
+                    {ativo && <span className="size-2 rounded-full bg-white" />}
+                  </span>
+                </div>
+                <p className="mt-3">
+                  <span className="text-3xl font-bold tracking-tight">{preco}</span>
+                  <span className="text-sm text-muted-foreground"> /{p.intervalo === "ano" ? t("ano") : t("mês")}</span>
+                </p>
+                <ul className="mt-4 space-y-2 text-sm">
+                  {[
+                    "Atendimento do WhatsApp num lugar só, com a equipe toda",
+                    "Agente de IA que responde e qualifica seus clientes",
+                    "Funil de vendas para não perder nenhuma oportunidade",
+                    "Transmissões e follow-ups automáticos",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <span aria-hidden className="mt-0.5 font-bold text-emerald-600">✓</span>
+                      <span>{t(item)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </label>
+            );
+          })}
+        </fieldset>
       )}
       {error && (
         <p className="text-sm text-destructive" role="alert">
@@ -114,13 +159,20 @@ export function RecoverOrganizationForm({
         </p>
       )}
       {semResposta && <AvisoSemResposta />}
-      <Button className="w-full" type="submit" disabled={isPending || name.trim().length < 2}>
+      <Button className="h-12 w-full text-base font-semibold" type="submit" disabled={isPending || name.trim().length < 2}>
         {isPending
           ? t("Preparando seu ambiente…")
           : comAprovacao
             ? t("Enviar pedido")
-            : t("Continuar para o onboarding")}
+            : planos.length > 0
+              ? t("Começar agora")
+              : t("Continuar para o onboarding")}
       </Button>
+      {planos.length > 0 && !comAprovacao && (
+        <p className="text-center text-xs text-muted-foreground">
+          {t("Pagamento seguro. Você revisa tudo antes de confirmar.")}
+        </p>
+      )}
     </form>
   );
 }
