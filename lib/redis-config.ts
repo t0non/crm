@@ -3,8 +3,8 @@
  *
  * ─── O erro que isto nomeia ─────────────────────────────────────────────────
  *
- * `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN` são `required()` puro em
- * `lib/env.ts` — sem `.url()`, sem forma. Qualquer texto passa pelo Zod. E a
+ * `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN` são opcionais em
+ * `lib/env.ts`. O formato é validado aqui. A
  * forma errada mais comum não é digitação: é o `.env` do self-host levando junto
  * o que estava em volta do valor —
  *
