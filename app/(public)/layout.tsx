@@ -1,3 +1,4 @@
+import { FaixaDeCor } from "@/components/branding/FaixaDeCor";
 import { LogotipoDoProduto } from "@/components/branding/MarcaDoProduto";
 import { marcaEhADoProduto } from "@/lib/branding";
 import { marcaDaSaida } from "@/lib/branding/saida";
@@ -59,8 +60,9 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <IdiomaProvider locale={locale}>
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="w-full max-w-sm space-y-6">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6">
+        <FaixaDeCor />
+        <div className="relative z-10 w-full max-w-sm space-y-6">
           {marca.logoUrl || marca.logoDarkUrl ? (
             <div className="flex justify-center">
               {/*

@@ -127,7 +127,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     getSistemaSnapshotDoServidor,
   );
 
-  const resolvedTheme: ResolvedTheme = theme === "system" ? systemTheme : theme;
+  // O sistema é SEMPRE claro (decisão de produto): a preferência guardada e a do
+  // sistema operacional não escurecem mais nada.
+  void theme;
+  void systemTheme;
+  const resolvedTheme: ResolvedTheme = "light";
 
   // Aplica no DOM sempre que o tema efetivo muda. Isto não é "ler estado
   // externo" (o que o external store acima já cobre) — é o único jeito de
@@ -138,18 +142,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyTheme(resolvedTheme);
   }, [resolvedTheme]);
 
-  const setTheme = React.useCallback((next: Theme) => {
-    gravarTema(next);
+  const setTheme = React.useCallback((_next: Theme) => {
+    gravarTema("light");
   }, []);
 
   const toggle = React.useCallback(() => {
     const atual = getTemaSnapshot();
     const resolvidoAtual = atual === "system" ? getSistemaSnapshot() : atual;
-    gravarTema(resolvidoAtual === "dark" ? "light" : "dark");
+    void resolvidoAtual;
+    gravarTema("light");
   }, []);
 
   const value = React.useMemo<ThemeContextValue>(
-    () => ({ theme, resolvedTheme, setTheme, toggle }),
+    () => ({ theme: "light" as Theme, resolvedTheme, setTheme, toggle }),
     [theme, resolvedTheme, setTheme, toggle],
   );
 

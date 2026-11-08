@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { FaixaDeCor } from "@/components/branding/FaixaDeCor";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
 import { marcaDaSaida } from "@/lib/branding/saida";
@@ -69,8 +70,9 @@ export default async function GetStartedPage() {
 
   return (
     <IdiomaProvider locale={user.idioma}>
-      <main className="bg-muted/40 flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="w-full max-w-lg space-y-6 rounded-2xl border bg-background p-6 shadow-sm sm:p-8">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
+        <FaixaDeCor />
+        <div className="relative z-10 w-full max-w-lg space-y-6">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">
               {marca.nome}

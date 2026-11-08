@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { FaixaDeCor } from "@/components/branding/FaixaDeCor";
 import { FormularioDoPlano } from "@/components/cobranca/FormularioDoPlano";
 import { loadAuthUser, orgAtivaSemPortao } from "@/lib/auth/server";
 import { checkoutSandboxHabilitado } from "@/lib/cobranca/configuracao";
@@ -20,8 +21,9 @@ export default async function Planos({ searchParams }: { searchParams: Promise<{
   const inicial = typeof cupom === "string" ? await aplicarCupom(cupom).catch(() => null) : null;
 
   return (
-    <main className="min-h-screen bg-muted/40 px-4 py-12 text-foreground sm:py-20">
-      <div className="mx-auto max-w-xl">
+    <main className="relative min-h-screen overflow-hidden bg-background px-4 py-12 text-foreground sm:py-20">
+      <FaixaDeCor />
+      <div className="relative z-10 mx-auto max-w-xl">
         <header className="mb-8 text-center">
           <p className="text-sm font-semibold tracking-widest text-muted-foreground">DATA SALES CRM</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Plano Profissional</h1>

@@ -257,6 +257,8 @@ export async function signUp(
 
   if (error) {
     if (error.status === 429) return { ok: false, error: "rate_limited" };
+    // O GoTrue também devolve o limite de envio de e-mail com outro status ("email rate limit exceeded").
+    if (/rate\s*limit/i.test(error.message)) return { ok: false, error: "rate_limited" };
 
     // ── O BECO SEM SAÍDA DE QUEM JÁ TEM CONTA ────────────────────────────
     //

@@ -102,7 +102,9 @@ export default async function SignupPage({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5 text-center">
+      {/* `data-some-apos-cadastro`: some quando o formulário mostra "Agora, só falta
+          confirmar no e-mail" (regra no próprio SignupForm, com :has). */}
+      <div data-some-apos-cadastro="" className="space-y-1.5 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">{t("Criar conta")}</h1>
         <p className="text-sm text-muted-foreground">
           {convite
@@ -137,15 +139,12 @@ export default async function SignupPage({
       {!jornadaComercial && (googleSemPlano ? (
         <p className="text-center text-xs text-muted-foreground">{t("Para garantir que o plano selecionado seja contratado, conclua o cadastro com e-mail e senha.")}</p>
       ) : (
-        <>
+        <div data-some-apos-cadastro="">
           <EntrarComGoogle convite={convite?.token} />
-          {planos.length > 0 && (
-            <p className="text-center text-xs text-muted-foreground">{t("Com o Google, a empresa começa no plano padrão. Para escolher outro, use e-mail e senha.")}</p>
-          )}
-        </>
+        </div>
       ))}
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p data-some-apos-cadastro="" className="text-center text-sm text-muted-foreground">
         {t("Já tem conta?")}{" "}
         <Link
           href={

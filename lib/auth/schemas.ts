@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const loginSchema = z.object({
   email: z.string().email("Email inválido"),
-  password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
+  password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres").max(72, "A senha pode ter no máximo 72 caracteres"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -25,7 +25,7 @@ export const signupSchema = z
     full_name: z.string().trim().min(2, "Informe seu nome").max(120).optional(),
     cobranca_plan_id: z.string().uuid().optional(),
     email: z.string().email("Email inválido"),
-    password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
+    password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres").max(72, "A senha pode ter no máximo 72 caracteres"),
     password_confirm: z.string(),
   })
   .refine((v) => v.password === v.password_confirm, {
@@ -59,7 +59,7 @@ export const signupComConviteSchema = z
      */
     full_name: z.string().trim().min(2, "Informe seu nome").max(120),
     email: z.string().email("Email inválido"),
-    password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
+    password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres").max(72, "A senha pode ter no máximo 72 caracteres"),
     password_confirm: z.string(),
   })
   .refine((v) => v.password === v.password_confirm, {
@@ -80,6 +80,7 @@ export const resetPasswordSchema = z
     password: z
       .string()
       .min(8, "Senha deve ter pelo menos 8 caracteres")
+      .max(72, "A senha pode ter no máximo 72 caracteres")
       .regex(/[A-Za-zÀ-ÿ]/, "Senha deve ter pelo menos uma letra")
       .regex(/[0-9]/, "Senha deve ter pelo menos um número")
       .regex(/[^A-Za-zÀ-ÿ0-9\s]/, "Senha deve ter pelo menos um símbolo"),
