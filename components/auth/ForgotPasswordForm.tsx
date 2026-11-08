@@ -55,13 +55,11 @@ export function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <div
-        className="space-y-2 rounded-md border bg-muted/40 px-4 py-6 text-center"
-        role="status"
-      >
-        <p className="text-sm font-medium">{t("Verifique seu e-mail")}</p>
-        <p className="text-sm text-muted-foreground">
-          {t("Se existir uma conta com esse e-mail, enviamos um link para redefinir a senha.")}
+      <div data-cadastro-enviado="" className="space-y-4 py-4 text-center" role="status">
+        <style>{`body:has([data-cadastro-enviado]) [data-some-apos-cadastro] { display: none; }`}</style>
+        <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">{t("Pronto! Agora é só abrir seu e-mail")}</h1>
+        <p className="text-balance text-base text-muted-foreground">
+          {t("Se existir uma conta com esse e-mail, enviamos um link para redefinir a senha. Se não aparecer em alguns minutos, olhe também o Spam.")}
         </p>
       </div>
     );
