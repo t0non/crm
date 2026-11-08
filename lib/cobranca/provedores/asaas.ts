@@ -727,6 +727,27 @@ export function criarAdaptadorAsaas(dep: DependenciasDoAsaas): AdaptadorDeCobran
     }
   }
 
+  /**
+   * `GET /v3/payments/{id}/pixQrCode`: o QR da cobrança (Pix ou "UNDEFINED", em
+   * que o cliente escolhe). A imagem vira `data:image/png;base64,` na tela, então
+   * só passa base64 puro e de tamanho sensato — nada de HTML vindo do provedor.
+   */
+  async function pixDaCobranca(pagamentoRef: string) {
+    const resposta = ler(
+      z.object({
+        encodedImage: z.string().min(16).max(400_000).regex(/^[A-Za-z0-9+/=\r\n]+$/),
+        payload: z.string().min(10).max(1000),
+        expirationDate: z.string().nullish(),
+      }),
+      await chamar("GET", `/payments/${encodeURIComponent(pagamentoRef)}/pixQrCode`),
+    );
+    return {
+      imagemBase64: resposta.encodedImage.replace(/\s+/g, ""),
+      copiaECola: resposta.payload,
+      expiraEm: resposta.expirationDate ?? null,
+    };
+  }
+
   /** O Asaas não tem portal: "gerenciar" é pagar a cobrança aberta. Sem ela, `null` (a rota responde 409 `sem_portal`). */
   async function urlDeGerenciar(p: { clienteRef: string }): Promise<string | null> {
     return (await lerSituacao({ clienteRef: p.clienteRef })).linkDePagamento;
@@ -749,5 +770,6 @@ export function criarAdaptadorAsaas(dep: DependenciasDoAsaas): AdaptadorDeCobran
     trocarPlano,
     cancelarNoFim,
     urlDeGerenciar,
+    pixDaCobranca,
   };
 }

@@ -166,6 +166,11 @@ export interface AdaptadorDeCobranca {
   lerPagamentoProporcional(pagamentoRef: string): Promise<"pendente" | "pago" | "encerrado">;
   lerSituacao(p: { clienteRef: string }): Promise<Situacao>;
   lerHistorico?(assinaturaRef: string): Promise<CobrancaDaAssinatura[]>;
+  /**
+   * O Pix de UMA cobrança aberta, para pagar sem sair da tela: a imagem do QR
+   * (PNG em base64, sem o prefixo `data:`) e o "copia e cola". Só o Asaas tem.
+   */
+  pixDaCobranca?(pagamentoRef: string): Promise<{ imagemBase64: string; copiaECola: string; expiraEm: string | null }>;
   /** Atualiza o preço recorrente sem mudar a data de renovação. Pode recusar com ErroDoProvedor não transitório. */
   trocarPlano(p: { assinaturaRef: string; plano: PlanoParaProvedor }): Promise<void>;
   /**

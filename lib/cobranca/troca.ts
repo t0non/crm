@@ -179,7 +179,9 @@ export async function trocarPlanoDaOrg(
     valeAPartirDe: quando === "agendado" ? atual.proximo_vencimento : null, de: atual.plano_id,
   });
   if (planoId === atual.plano_id && atual.plano_agendado_id === null) return nada("nenhum");
-  if (planoId === atual.plano_agendado_id) return nada("agendado");
+  // Quem nunca pagou não tem "próxima cobrança paga" para esperar: o pedido de um
+  // plano já agendado é refeito e passa a valer na hora (ver `naHora` abaixo).
+  if (planoId === atual.plano_agendado_id && atual.periodo_pago_desde !== null) return nada("agendado");
   if (lida?.preco_contratado_cents != null) {
     return recusa(409, "contrato_profissional", "Uma assinatura com preço contratado exige uma nova contratação para mudar de plano.");
   }
@@ -187,6 +189,11 @@ export async function trocarPlanoDaOrg(
   const adaptadorDe = deps.adaptador ?? adaptadorPadrao;
   if (EM_DIVIDA.includes(atual.estado)) return recusa(409, "pagamento_pendente", "Regularize o pagamento antes de trocar de plano.");
   const emTeste = atual.estado === "trial" && atual.trial_ate !== null && Date.parse(atual.trial_ate) > agora.getTime();
+  // Conta que ainda não pagou nenhuma mensalidade (teste grátis acabado ou entrada
+  // paga esperando o 1º pagamento): não há período pago a respeitar, então a troca
+  // vale NA HORA, como no teste grátis. Agendar "para a próxima cobrança paga"
+  // deixava a tela de ativar conta cobrando o plano antigo para sempre.
+  const naHora = emTeste || (atual.periodo_pago_desde === null && atual.estado !== "ativa");
   if (!emTeste && !atual.provedor) {
     return recusa(409, "pagamento_pendente", "O teste grátis acabou e não há pagamento. A troca de plano vale depois da assinatura.");
   }
@@ -274,7 +281,7 @@ export async function trocarPlanoDaOrg(
   // Upgrade da EMPRESA durante um período pago: cobra a diferença pelo tempo
   // restante e só troca preço/limites quando o provedor confirma essa cobrança
   // avulsa. O dono atribui plano negociado: agenda, como antes do #2846.
-  if (!emTeste && origem === "empresa" && novo.preco_cents > antigo.preco_cents && provedorDaTroca) {
+  if (!naHora && origem === "empresa" && novo.preco_cents > antigo.preco_cents && provedorDaTroca) {
     // Cobrança cheia em aberto (um Assinar que a leitura ainda não alcançou): o ajuste
     // seria calculado sobre o período antigo da linha e cobraria em dobro. Só acontece
     // com a linha atrasada — a leitura que vê a assinatura viva limpa o link.
@@ -372,7 +379,7 @@ export async function trocarPlanoDaOrg(
     return recusa(409, "state_conflict", "A assinatura ainda não foi criada no provedor. Conclua o pagamento antes de trocar.");
   }
 
-  const campos = emTeste
+  const campos = naHora
     ? {
         plano_id: novo.id,
         plano_agendado_id: null,
@@ -406,7 +413,7 @@ export async function trocarPlanoDaOrg(
       : recusa(409, "state_conflict", `A assinatura mudou enquanto você trocava o plano. Recarregue e tente de novo.${aviso}`);
   }
 
-  return emTeste
+  return naHora
     ? { ok: true, changed: true, quando: "imediato", planoId: novo.id, planoAgendadoId: null, valeAPartirDe: null, de: atual.plano_id }
     : {
         ok: true, changed: true, quando: "agendado", planoId: atual.plano_id,
