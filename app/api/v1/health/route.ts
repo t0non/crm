@@ -352,7 +352,7 @@ function segredoInternoConfere(req: NextRequest): boolean {
  *
  * Medido, com valores que passam pelo Zod de `lib/env.ts` — porque só
  * `NEXT_PUBLIC_SUPABASE_URL` é `.url()` (linha 69); `WAHA_API_BASE_URL` (140) e
- * `UPSTASH_REDIS_REST_URL` (155) são `required()` puro, sem validação de forma:
+ * `UPSTASH_REDIS_REST_URL` aceitam texto sem validar o formato no boot:
  *
  *   "redis-interno.hostgator-vps.com"
  *     -> e.message = "Failed to parse URL from redis-interno.hostgator-vps.com"

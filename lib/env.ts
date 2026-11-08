@@ -303,8 +303,9 @@ const schema = z.object({
   DATAFY_ENABLED: z.string().optional().default(""),
 
   // Upstash Redis
-  UPSTASH_REDIS_REST_URL: required("UPSTASH_REDIS_REST_URL"),
-  UPSTASH_REDIS_REST_TOKEN: required("UPSTASH_REDIS_REST_TOKEN"),
+  // Sem Redis, os limites e a indexação usam a memória de cada processo.
+  UPSTASH_REDIS_REST_URL: z.string().default(""),
+  UPSTASH_REDIS_REST_TOKEN: z.string().default(""),
 
   // AI providers — env-gated. Worker no-ops with skip="ai_gateway_key_missing"
   // when AI_GATEWAY_API_KEY is absent, so production boot must not be fatal.
