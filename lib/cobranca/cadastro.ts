@@ -27,9 +27,18 @@ export interface PlanosDoCadastro {
   oferecidos: PlanoDoCadastro[];
 }
 
+/**
+ * O plano da contratação pelo site: o oferecido cujo nome tem "profissional"
+ * (o de R$ 297 primeiro, se houver mais de um); sem nenhum com esse nome, o
+ * único oferecido. Antes exigia nome, preço, intervalo e teste grátis exatos,
+ * e qualquer diferença deixava o cadastro "indisponível" sem dizer por quê.
+ */
 export function planoDaContratacao(planos: readonly PlanoDoCadastro[]): PlanoDoCadastro | undefined {
-  return planos.find((plano) => plano.nome.trim().toLowerCase() === "profissional" &&
-    plano.preco_cents === PRECO_PROFISSIONAL_CENTS && plano.intervalo === "mes" && plano.trial_dias === 0);
+  const comONome = planos.filter((plano) => plano.nome.toLowerCase().includes("profissional"));
+  if (comONome.length > 0) {
+    return comONome.find((plano) => plano.preco_cents === PRECO_PROFISSIONAL_CENTS) ?? comONome[0];
+  }
+  return planos.length === 1 ? planos[0] : undefined;
 }
 
 /** `null` quando a leitura falhou: quem decide uma AÇÃO trata como recusa. */

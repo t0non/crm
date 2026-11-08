@@ -3,10 +3,11 @@
 /* Referência visual solicitada: https://www.kommo.com/br/.
  * Preserva a marca, a oferta e os destinos comerciais da instalação. */
 /* eslint-disable @next/next/no-img-element -- Imagens locais com proporção original. */
-import { useState, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { EntrarComGoogle } from "@/components/auth/EntrarComGoogle";
+import { SignupForm } from "@/components/auth/SignupForm";
 import Link from "next/link";
 import { fonteEuclid as euclid } from "@/lib/ui/fonte-euclid";
 import {
@@ -23,7 +24,11 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { CAMINHO_CADASTRO_COMERCIAL } from "@/lib/cobranca/jornada";
+import {
+  CAMINHO_CADASTRO_COMERCIAL,
+  CAMINHO_LOGIN_COMERCIAL,
+  CAMINHO_PLANOS_COMERCIAL,
+} from "@/lib/cobranca/jornada";
 import { PRECO_PROFISSIONAL_CENTS } from "@/lib/cobranca/oferta-profissional";
 import s from "./landing-page.module.css";
 
@@ -97,14 +102,33 @@ const aiItems = [
   ],
 ];
 
-export function LandingPage({ nome }: { nome: string }) {
-  const [loginOpen, setLoginOpen] = useState(false);
-  const abrirLogin = (event: MouseEvent<HTMLAnchorElement>) => {
+type TelaDeAcesso = "login" | "cadastro" | "login-compra";
+
+export function LandingPage({
+  nome,
+  planoComercialId,
+  cadastroSomenteConvite,
+  cadastroComAprovacao,
+}: {
+  nome: string;
+  planoComercialId?: string;
+  cadastroSomenteConvite?: boolean;
+  cadastroComAprovacao?: boolean;
+}) {
+  const [acesso, setAcesso] = useState<TelaDeAcesso | null>(null);
+  const origemDoAcesso = useRef<HTMLAnchorElement | null>(null);
+  const abrirAcesso = (event: MouseEvent<HTMLAnchorElement>, tela: TelaDeAcesso) => {
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
+    if (acesso === null) origemDoAcesso.current = event.currentTarget;
     setMobileOpen(false);
-    setLoginOpen(true);
+    setAcesso(tela);
   };
+  const abrirLogin = (event: MouseEvent<HTMLAnchorElement>) => abrirAcesso(event, "login");
+  const abrirCadastro = (event: MouseEvent<HTMLAnchorElement>) => abrirAcesso(event, "cadastro");
+  const abrirLoginDaCompra = (event: MouseEvent<HTMLAnchorElement>) => abrirAcesso(event, "login-compra");
+  const noCadastro = acesso === "cadastro";
+  const destinoDoLogin = acesso === "login-compra" ? CAMINHO_PLANOS_COMERCIAL : "/app/inbox";
   const [demo, setDemo] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notice, setNotice] = useState(true);
@@ -115,35 +139,45 @@ export function LandingPage({ nome }: { nome: string }) {
     maximumFractionDigits: 0,
   }).format(PRECO_PROFISSIONAL_CENTS / 100);
   const signup = (
-    <Link className={s.gradientButton} href={CAMINHO_CADASTRO_COMERCIAL}>
+    <Link className={s.gradientButton} href={CAMINHO_CADASTRO_COMERCIAL} onClick={abrirCadastro}>
       Começar agora <Sparkles size={20} aria-hidden="true" />
     </Link>
   );
 
   return (
     <div className={`${s.page} ${euclid.variable}`}>
-      <Dialog.Root open={loginOpen} onOpenChange={setLoginOpen}>
+      <Dialog.Root open={acesso !== null} onOpenChange={(open) => { if (!open) setAcesso(null); }}>
         <Dialog.Portal>
           <Dialog.Overlay className={s.authOverlay} />
           <Dialog.Content
             className={`${s.page} ${s.authScreen} ${euclid.variable}`}
             aria-describedby={undefined}
+            onCloseAutoFocus={(event) => {
+              if (origemDoAcesso.current?.isConnected) {
+                event.preventDefault();
+                origemDoAcesso.current.focus();
+              }
+            }}
           >
             <header className={s.authHeader}>
               <div>
                 <button
                   type="button"
                   className={s.logo}
-                  onClick={() => setLoginOpen(false)}
+                  onClick={() => setAcesso(null)}
                   aria-label="Voltar para o site"
                 >
                   {nome}
                 </button>
                 <div>
-                  <Link href={CAMINHO_CADASTRO_COMERCIAL} className={s.register}>
-                    Registre-se
+                  <Link
+                    href={noCadastro ? CAMINHO_LOGIN_COMERCIAL : CAMINHO_CADASTRO_COMERCIAL}
+                    className={s.register}
+                    onClick={noCadastro ? abrirLoginDaCompra : abrirCadastro}
+                  >
+                    {noCadastro ? "Entrar" : "Registre-se"}
                   </Link>
-                  <Dialog.Close className={s.authClose} aria-label="Fechar login">
+                  <Dialog.Close className={s.authClose} aria-label={noCadastro ? "Fechar cadastro" : "Fechar login"}>
                     <X size={26} />
                   </Dialog.Close>
                 </div>
@@ -151,14 +185,36 @@ export function LandingPage({ nome }: { nome: string }) {
             </header>
             <div className={s.authBody}>
               <div className={s.authForm}>
-                <Dialog.Title className={s.authTitle}>Faça login</Dialog.Title>
-                <LoginForm next="/app/inbox" apresentacao="landing" />
-                <div className={s.authGoogle}>
-                  <EntrarComGoogle next="/app/inbox" />
-                </div>
-                <Link className={s.authForgot} href="/login/forgot">
-                  Esqueceu a senha?
-                </Link>
+                <Dialog.Title className={s.authTitle}>{noCadastro ? "Criar conta" : "Faça login"}</Dialog.Title>
+                {noCadastro ? (
+                  <div className={s.authSignup}>
+                    {cadastroSomenteConvite ? (
+                      <p role="status">O cadastro nesta instalação é apenas por convite.</p>
+                    ) : planoComercialId ? (
+                      <>
+                        <p>Crie sua conta para revisar o plano e concluir o pagamento.</p>
+                        {cadastroComAprovacao && <p>A empresa só é criada após aprovação.</p>}
+                        <SignupForm planoInicial={planoComercialId} contratar />
+                      </>
+                    ) : (
+                      <p role="status">O cadastro para o plano Profissional está temporariamente indisponível.</p>
+                    )}
+                    <p>
+                      Já tem conta?{" "}
+                      <Link href={CAMINHO_LOGIN_COMERCIAL} onClick={abrirLoginDaCompra}>Entrar</Link>
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <LoginForm next={destinoDoLogin} apresentacao="landing" />
+                    <div className={s.authGoogle}>
+                      <EntrarComGoogle next={destinoDoLogin} />
+                    </div>
+                    <Link className={s.authForgot} href="/login/forgot">
+                      Esqueceu a senha?
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </Dialog.Content>
@@ -221,7 +277,7 @@ export function LandingPage({ nome }: { nome: string }) {
             <Link className={s.login} href={CAMINHO_LOGIN_CRM} onClick={abrirLogin}>
               Iniciar sessão
             </Link>
-            <Link className={s.register} href={CAMINHO_CADASTRO_COMERCIAL}>
+            <Link className={s.register} href={CAMINHO_CADASTRO_COMERCIAL} onClick={abrirCadastro}>
               Registre-se
             </Link>
           </div>
@@ -250,7 +306,7 @@ export function LandingPage({ nome }: { nome: string }) {
             <Link href={CAMINHO_LOGIN_CRM} onClick={abrirLogin}>
               Iniciar sessão
             </Link>
-            <Link href={CAMINHO_CADASTRO_COMERCIAL}>Registre-se</Link>
+            <Link href={CAMINHO_CADASTRO_COMERCIAL} onClick={abrirCadastro}>Registre-se</Link>
           </nav>
         )}
       </header>
@@ -482,7 +538,7 @@ export function LandingPage({ nome }: { nome: string }) {
               </p>
               <p>Revise as condições e aplique seu cupom antes de pagar.</p>
               {signup}
-              <Link href={CAMINHO_LOGIN_CRM} onClick={abrirLogin}>
+              <Link href={CAMINHO_LOGIN_COMERCIAL} onClick={abrirLoginDaCompra}>
                 Já tenho conta <ArrowRight size={16} />
               </Link>
             </div>
@@ -532,7 +588,7 @@ export function LandingPage({ nome }: { nome: string }) {
           <div>
             <h3>Comece agora</h3>
             <a href="#plano">Preços</a>
-            <Link href={CAMINHO_CADASTRO_COMERCIAL}>Criar conta</Link>
+            <Link href={CAMINHO_CADASTRO_COMERCIAL} onClick={abrirCadastro}>Criar conta</Link>
             <Link href={CAMINHO_LOGIN_CRM} onClick={abrirLogin}>
               Iniciar sessão
             </Link>
